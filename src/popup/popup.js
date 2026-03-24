@@ -6,7 +6,7 @@ import {
   PROFILE_STORAGE_KEY,
 } from "../lib/constants.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
-import { bootstrap, setPreferences } from "../lib/drawing-office-social-client.js";
+import { bootstrap, setPreferences } from "../lib/sketch-party-social-client.js";
 import { getEntitlementBadge } from "../lib/entitlements.js";
 
 const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
@@ -38,7 +38,7 @@ let currentState = null;
 function avatarFromName(name) {
   const safe = (name || "DO").trim();
   const parts = safe.split(/\s+/).filter(Boolean).slice(0, 2);
-  return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "DO";
+  return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "SP";
 }
 
 function normalizeServerUrl(value) {
@@ -128,7 +128,7 @@ async function applyBootstrapState(state) {
   if (!state) {
     accountTitle.textContent = "Waiting for Google sign-in";
     accountSubtitle.textContent = "Once you sign in, your friends and preferences will load again.";
-    accountAvatar.textContent = "DO";
+    accountAvatar.textContent = "SP";
     accountStatePill.textContent = "Not ready";
     accountStatePill.style.background = "#f3e5d5";
     statusText.textContent = "You need to sign in before opening the board.";
@@ -144,7 +144,7 @@ async function applyBootstrapState(state) {
   appearOnlineInput.checked = state.preferences.appearOnline;
   allowSurpriseInput.checked = state.preferences.allowSurprise;
   accountTitle.textContent = state.user.displayName;
-  accountSubtitle.textContent = state.user.email || "Your Drawing Office account is connected.";
+  accountSubtitle.textContent = state.user.email || "Your Sketch Party account is connected.";
   accountAvatar.textContent = avatarFromName(state.user.displayName);
   accountStatePill.textContent = state.preferences.extensionEnabled
     ? (state.preferences.appearOnline ? "Online" : "Hidden")

@@ -18,7 +18,7 @@ const usersByToken = new Map([
 const sessionRows = new Map([
   ["session-live-1", {
     id: "session-live-1",
-    app_id: "drawing-office",
+    app_id: "sketch-party",
     initiator_id: "user-a",
     recipient_id: "user-b",
     mode: "live",
@@ -171,7 +171,7 @@ async function main() {
       HOST: "127.0.0.1",
       SUPABASE_URL: supabaseUrl,
       SUPABASE_ANON_KEY: "test-anon-key",
-      APP_ID: "drawing-office",
+  APP_ID: "sketch-party",
       RECONNECT_GRACE_MS: "1200",
       MAX_PAYLOAD_BYTES: "32768",
     },
@@ -208,7 +208,7 @@ async function main() {
 
     const invalidError = await invalidClient.waitFor((message) => message.type === "error");
     assert(
-      invalidError.message.includes("JWT dogrulamasi basarisiz"),
+      invalidError.message.includes("JWT verification failed"),
       "Invalid token should be rejected",
     );
 
@@ -256,7 +256,7 @@ async function main() {
     }));
     const invalidSessionError = await clientA.waitFor((message) =>
       message.type === "error" &&
-      message.message.includes("gecersiz")
+      message.message.includes("invalid")
     );
     assert(Boolean(invalidSessionError), "Missing rpcSessionId should fail");
 
@@ -319,7 +319,7 @@ async function main() {
     }));
 
     const invalidDraw = await clientA.waitFor((message) =>
-      message.type === "error" && message.message.includes("Cizim verisi gecersiz")
+      message.type === "error" && message.message.includes("drawing payload is invalid")
     );
     assert(Boolean(invalidDraw), "Invalid draw payload should be rejected");
 
@@ -333,7 +333,7 @@ async function main() {
     }
 
     const rateLimitError = await clientA.waitFor((message) =>
-      message.type === "error" && message.message.includes("Mesajlar cok hizli")
+      message.type === "error" && message.message.includes("Messages are being sent too quickly")
     );
     assert(Boolean(rateLimitError), "Chat spam should trigger rate limiting");
 

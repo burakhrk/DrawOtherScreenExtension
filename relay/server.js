@@ -5,7 +5,7 @@ const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "0.0.0.0";
 const reconnectGraceMs = Number(process.env.RECONNECT_GRACE_MS || 8000);
 const maxPayloadBytes = Number(process.env.MAX_PAYLOAD_BYTES || 32 * 1024);
-const appId = process.env.APP_ID || "drawing-office";
+const appId = process.env.APP_ID || "sketch-party";
 const supabaseUrl = process.env.SUPABASE_URL || "https://euzeprutflhfavzxuwfs.supabase.co";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1emVwcnV0ZmxoZmF2enh1d2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODIzMTgsImV4cCI6MjA4OTI1ODMxOH0.C80nlS1Y_p8faRp2vHkRpGfVoYRubHH9Ja7yfxyPmbw";
 
@@ -38,7 +38,7 @@ function defaultPreferences() {
 
 function normalizeDisplayName(value) {
   const nextValue = String(value || "").trim().slice(0, 32);
-  return nextValue || "Misafir";
+  return nextValue || "Guest";
 }
 
 function normalizePreferences(preferences) {
@@ -383,18 +383,18 @@ async function fetchVerifiedSession({ accessToken, sessionId, initiatorId, recip
 
 async function validateUserIdentity(message, socket) {
   if (!message.userId || !message.clientId || !message.accessToken) {
-    sendProtocolError(socket, "Kayit icin userId, clientId ve access token gerekli.", true);
+    sendProtocolError(socket, "Registration requires userId, clientId, and an access token.", true);
     return null;
   }
 
   const verifiedUser = await fetchVerifiedUser(message.accessToken);
 
   if (!verifiedUser || verifiedUser.id !== message.userId) {
-    sendProtocolError(socket, "JWT dogrulamasi basarisiz.", true);
+    sendProtocolError(socket, "JWT verification failed.", true);
     return null;
   }
 
-  const user = ensureRuntimeUser(message.userId, message.displayName || "Misafir");
+  const user = ensureRuntimeUser(message.userId, message.displayName || "Guest");
   user.lastAccessToken = message.accessToken;
   user.lastSeenAt = Date.now();
   user.preferences = normalizePreferences(message.preferences);
@@ -437,7 +437,7 @@ const httpServer = http.createServer((request, response) => {
   }
 
   const body = JSON.stringify({
-    name: "Sync Sketch Party Relay",
+    name: "Sketch Party Relay",
     websocket: true,
     health: "/health",
     appId,
@@ -466,19 +466,19 @@ wss.on("connection", (socket) => {
 
   socket.on("message", async (raw, isBinary) => {
     if (isBinary) {
-      sendProtocolError(socket, "Binary payload desteklenmiyor.");
+      sendProtocolError(socket, "Binary payloads are not supported.");
       return;
     }
 
     const message = safeJsonParse(raw);
     if (!message || typeof message.type !== "string") {
-      sendProtocolError(socket, "Gecersiz mesaj formati.");
+      sendProtocolError(socket, "Invalid message format.");
       return;
     }
 
     if (message.type === "register-user") {
       if (!enforceRateLimit(socket, "register-user", 6, 60_000)) {
-        sendProtocolError(socket, "Kayit istegi cok sik gonderildi.");
+        sendProtocolError(socket, "Registration requests are being sent too often.");
         return;
       }
 
@@ -515,7 +515,7 @@ wss.on("connection", (socket) => {
     }
 
     if (!socket.userId || !socket.clientId) {
-      sendProtocolError(socket, "Baglanti once kayit olmali.");
+      sendProtocolError(socket, "The socket must register before using realtime features.");
       return;
     }
 
@@ -526,7 +526,7 @@ wss.on("connection", (socket) => {
 
     if (message.type === "start-session") {
       if (!enforceRateLimit(socket, "start-session", 12, 60_000)) {
-        sendProtocolError(socket, "Cok fazla oturum denemesi yapildi.");
+        sendProtocolError(socket, "Too many session start attempts were made.");
         return;
       }
 
@@ -535,23 +535,23 @@ wss.on("connection", (socket) => {
       const rpcSessionId = typeof message.rpcSessionId === "string" ? message.rpcSessionId : "";
 
       if (!targetUserId || !mode || !rpcSessionId) {
-        sendProtocolError(socket, "Oturum baslatma bilgisi gecersiz.");
+        sendProtocolError(socket, "The session start payload is invalid.");
         return;
       }
 
       if (user.preferences.extensionEnabled === false) {
-        sendProtocolError(socket, "Pasif moddayken oturum baslatamazsin.");
+        sendProtocolError(socket, "You cannot start a session while the extension is inactive.");
         return;
       }
 
       if (!isVisibleOnline(targetUserId)) {
-        sendProtocolError(socket, "Secilen kullanici su an musait degil.");
+        sendProtocolError(socket, "The selected user is not available right now.");
         return;
       }
 
       const targetClientId = getPreferredClientId(targetUserId);
       if (!targetClientId) {
-        sendProtocolError(socket, "Secilen kullanicinin aktif penceresi bulunamadi.");
+        sendProtocolError(socket, "The selected user's active window could not be found.");
         return;
       }
 
@@ -564,12 +564,12 @@ wss.on("connection", (socket) => {
       });
 
       if (!verifiedSession) {
-        sendProtocolError(socket, "Realtime oturum Supabase tarafinda dogrulanamadi.");
+        sendProtocolError(socket, "The realtime session could not be verified against Supabase.");
         return;
       }
 
-      closeUserSession(userId, "Yeni bir oturum baslatildi.");
-      closeUserSession(targetUserId, "Yeni bir oturum baslatildi.");
+      closeUserSession(userId, "A new session was started.");
+      closeUserSession(targetUserId, "A new session was started.");
 
       const session = {
         sessionId: verifiedSession.id,
@@ -595,7 +595,7 @@ wss.on("connection", (socket) => {
 
     if (message.type === "leave-session") {
       if (!enforceRateLimit(socket, "leave-session", 20, 60_000)) {
-        sendProtocolError(socket, "Oturum kapatma istegi cok sık gonderildi.");
+        sendProtocolError(socket, "Session end requests are being sent too often.");
         return;
       }
 
@@ -608,11 +608,11 @@ wss.on("connection", (socket) => {
         !session.participants.includes(userId) ||
         session.clientIds[userId] !== socket.clientId
       ) {
-        sendProtocolError(socket, "Bu oturumu kapatma yetkin yok.");
+        sendProtocolError(socket, "You do not have permission to end this session.");
         return;
       }
 
-      endSession(message.sessionId, "Oturum sonlandirildi.");
+      endSession(message.sessionId, "Session ended.");
       return;
     }
 
@@ -620,7 +620,7 @@ wss.on("connection", (socket) => {
     const session = sessions.get(sessionId);
 
     if (!session || message.sessionId !== sessionId || session.clientIds[userId] !== socket.clientId) {
-      sendProtocolError(socket, "Aktif oturum bulunamadi.");
+      sendProtocolError(socket, "No active session was found.");
       return;
     }
 
@@ -629,7 +629,7 @@ wss.on("connection", (socket) => {
 
     if (message.type === "draw-segment") {
       if (!enforceRateLimit(socket, "draw-segment", 240, 10_000)) {
-        sendProtocolError(socket, "Cizim verisi cok hizli gonderiliyor.");
+        sendProtocolError(socket, "Drawing data is being sent too quickly.");
         return;
       }
 
@@ -639,7 +639,7 @@ wss.on("connection", (socket) => {
 
       const segment = sanitizeSegment(message.segment);
       if (!segment) {
-        sendProtocolError(socket, "Cizim verisi gecersiz.");
+        sendProtocolError(socket, "The drawing payload is invalid.");
         return;
       }
 
@@ -654,7 +654,7 @@ wss.on("connection", (socket) => {
 
     if (message.type === "clear-canvas") {
       if (!enforceRateLimit(socket, "clear-canvas", 20, 60_000)) {
-        sendProtocolError(socket, "Temizleme istegi cok hizli gonderiliyor.");
+        sendProtocolError(socket, "Clear-canvas requests are being sent too quickly.");
         return;
       }
 
@@ -672,13 +672,13 @@ wss.on("connection", (socket) => {
 
     if (message.type === "chat") {
       if (!enforceRateLimit(socket, "chat", 40, 20_000)) {
-        sendProtocolError(socket, "Mesajlar cok hizli gonderiliyor.");
+        sendProtocolError(socket, "Messages are being sent too quickly.");
         return;
       }
 
       const text = sanitizeChatText(message.text);
       if (!text) {
-        sendProtocolError(socket, "Mesaj bos olamaz.");
+        sendProtocolError(socket, "A chat message cannot be empty.");
         return;
       }
 
@@ -696,7 +696,7 @@ wss.on("connection", (socket) => {
       return;
     }
 
-    sendProtocolError(socket, "Desteklenmeyen realtime mesaji.");
+    sendProtocolError(socket, "Unsupported realtime message type.");
   });
 
   socket.on("close", () => {
@@ -725,7 +725,7 @@ wss.on("connection", (socket) => {
         pendingSessionClosures.delete(userId);
 
         if (!isOnline(userId)) {
-          closeUserSession(userId, "Karsi taraf baglantiyi kapatti.");
+          closeUserSession(userId, "The other side disconnected.");
           runtimeUsers.delete(userId);
           activeClientByUserId.delete(userId);
           broadcastPresenceState();
@@ -754,5 +754,6 @@ wss.on("close", () => {
 });
 
 httpServer.listen(port, host, () => {
-  console.log(`Sync Sketch Party relay sunucusu http://${host}:${port} adresinde hazir.`);
+  console.log(`Sketch Party relay is ready at http://${host}:${port}.`);
 });
+

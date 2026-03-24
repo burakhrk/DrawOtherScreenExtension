@@ -11,6 +11,7 @@ function getAppEntitlementMetadata(user) {
   return (
     appMetadata.extension_entitlements?.[APP_ID] ||
     appMetadata[APP_ID] ||
+    appMetadata.sketch_party ||
     appMetadata.drawing_office ||
     {}
   );

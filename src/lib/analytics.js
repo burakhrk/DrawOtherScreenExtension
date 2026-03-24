@@ -1,6 +1,6 @@
 import { APP_ID } from "./constants.js";
 
-const ANALYTICS_KEY = "drawing-office-analytics-log";
+const ANALYTICS_KEY = "sketch-party-analytics-log";
 
 function normalizePayload(payload = {}) {
   return {

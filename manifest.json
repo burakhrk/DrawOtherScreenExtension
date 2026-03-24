@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Sync Sketch Party",
+  "name": "Sketch Party",
   "version": "0.1.0",
   "description": "A Chrome extension for live drawing, playful effects, and chat between friends.",
   "permissions": [
@@ -16,7 +16,7 @@
     "service_worker": "src/background/background.js"
   },
   "action": {
-    "default_title": "Sync Sketch Party",
+    "default_title": "Sketch Party",
     "default_popup": "src/popup/popup.html"
   },
   "content_scripts": [
