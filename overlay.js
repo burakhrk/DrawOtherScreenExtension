@@ -131,6 +131,89 @@ function drawDrip(segment) {
   overlayContext.restore();
 }
 
+function drawZap(segment) {
+  const start = pagePoint(segment.from);
+  const end = pagePoint(segment.to);
+  const steps = 7;
+
+  overlayContext.save();
+  overlayContext.shadowBlur = 22;
+  overlayContext.shadowColor = hexToRgba("#fff7bf", 0.9);
+  overlayContext.strokeStyle = hexToRgba("#fff4ad", 0.98);
+  overlayContext.lineWidth = Math.max(2, segment.size * 0.85);
+  overlayContext.beginPath();
+  overlayContext.moveTo(start.x, start.y);
+
+  for (let index = 1; index < steps; index += 1) {
+    const progress = index / steps;
+    const sway = (index % 2 === 0 ? -1 : 1) * segment.size * 7;
+    const x = start.x + ((end.x - start.x) * progress) + sway;
+    const y = start.y + ((end.y - start.y) * progress);
+    overlayContext.lineTo(x, y);
+  }
+
+  overlayContext.lineTo(end.x, end.y);
+  overlayContext.stroke();
+  overlayContext.restore();
+}
+
+function drawHeartburst(segment) {
+  const center = pagePoint(segment.to);
+  const hearts = 7;
+
+  overlayContext.save();
+  overlayContext.fillStyle = hexToRgba(segment.color, 0.95);
+
+  for (let index = 0; index < hearts; index += 1) {
+    const angle = (Math.PI * 2 * index) / hearts;
+    const distance = segment.size * 7 + ((index % 2) * 12);
+    const x = center.x + Math.cos(angle) * distance;
+    const y = center.y + Math.sin(angle) * distance;
+    const size = Math.max(10, segment.size * 2);
+
+    overlayContext.beginPath();
+    overlayContext.moveTo(x, y + size * 0.2);
+    overlayContext.bezierCurveTo(x - size, y - size * 0.8, x - size * 1.4, y + size * 0.65, x, y + size * 1.35);
+    overlayContext.bezierCurveTo(x + size * 1.4, y + size * 0.65, x + size, y - size * 0.8, x, y + size * 0.2);
+    overlayContext.fill();
+  }
+
+  overlayContext.restore();
+}
+
+function drawBullet(segment) {
+  drawCrack({ ...segment, size: segment.size * 0.9 });
+
+  const center = pagePoint(segment.to);
+  overlayContext.save();
+  overlayContext.fillStyle = hexToRgba("#1f1a16", 0.95);
+  overlayContext.beginPath();
+  overlayContext.arc(center.x, center.y, Math.max(5, segment.size * 0.9), 0, Math.PI * 2);
+  overlayContext.fill();
+  overlayContext.restore();
+}
+
+function drawStickman(segment) {
+  const center = pagePoint(segment.to);
+  const scale = Math.max(18, segment.size * 2.8);
+
+  overlayContext.save();
+  overlayContext.strokeStyle = hexToRgba(segment.color, 0.96);
+  overlayContext.lineWidth = Math.max(2, segment.size * 0.7);
+  overlayContext.beginPath();
+  overlayContext.arc(center.x, center.y - scale * 1.25, scale * 0.42, 0, Math.PI * 2);
+  overlayContext.moveTo(center.x, center.y - scale * 0.8);
+  overlayContext.lineTo(center.x, center.y + scale * 0.65);
+  overlayContext.moveTo(center.x - scale * 0.82, center.y - scale * 0.18);
+  overlayContext.lineTo(center.x + scale * 0.84, center.y - scale * 0.52);
+  overlayContext.moveTo(center.x, center.y + scale * 0.65);
+  overlayContext.lineTo(center.x - scale * 0.76, center.y + scale * 1.55);
+  overlayContext.moveTo(center.x, center.y + scale * 0.65);
+  overlayContext.lineTo(center.x + scale * 0.9, center.y + scale * 1.48);
+  overlayContext.stroke();
+  overlayContext.restore();
+}
+
 function drawStroke(segment) {
   const from = pagePoint(segment.from);
   const to = pagePoint(segment.to);
@@ -175,6 +258,14 @@ function drawEffect(segment) {
     drawScribble(segment);
   } else if (segment.effect === "drip") {
     drawDrip(segment);
+  } else if (segment.effect === "zap") {
+    drawZap(segment);
+  } else if (segment.effect === "heartburst") {
+    drawHeartburst(segment);
+  } else if (segment.effect === "bullet") {
+    drawBullet(segment);
+  } else if (segment.effect === "stickman") {
+    drawStickman(segment);
   } else {
     drawStroke(segment);
   }

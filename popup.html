@@ -3,40 +3,102 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sync Sketch Party</title>
+    <title>Drawing Office</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <main class="popup-shell">
       <section class="hero">
-        <p class="eyebrow">Arkadas listeli canli cizim</p>
-        <h1>Bir kez esles, sonra listeden kisiyi secip ciz.</h1>
+        <p class="eyebrow">Drawing Office</p>
+        <h1>Hesabinla gir, arkadaslarini geri yukle, sonra hizlica bir sey gonder.</h1>
         <p class="subcopy">
-          Her kullanicinin kalici bir profili olur. Bir kez sync olduktan sonra
-          arkadas listesinde online durumu gorulur; istersen tek yonlu cizim
-          gonderir, istersen es zamanli ortak cizim baslatirsin.
+          Google ile oturum acildiginda sosyal durumun ve uygulama tercihlerin geri gelir.
+          Buradan paneli acabilir, hizli mesaj veya efekt taslagi hazirlayabilirsin.
         </p>
       </section>
 
-      <form id="session-form" class="session-form">
-        <label>
-          <span>Ismin</span>
-          <input id="displayName" name="displayName" type="text" maxlength="24" placeholder="Burak" required />
-        </label>
+      <section class="account-card">
+        <div class="account-copy">
+          <p class="eyebrow">Hesap</p>
+          <h2 id="accountTitle">Google ile giris bekleniyor</h2>
+          <p id="accountSubtitle" class="subcopy">Oturum acinca arkadaslarin ve tercihler tekrar yuklenecek.</p>
+        </div>
+        <div class="account-actions">
+          <button id="signInButton" type="button">Google ile Gir</button>
+          <button id="signOutButton" type="button" class="ghost danger hidden">Cikis Yap</button>
+        </div>
+      </section>
 
+      <form id="session-form" class="session-form">
         <label>
           <span>Sunucu adresi</span>
           <input id="serverUrl" name="serverUrl" type="url" placeholder="https://sync-sketch-party.onrender.com" required />
         </label>
 
-        <button type="submit">Paneli Ac</button>
+        <section class="settings-card">
+          <label class="toggle-row">
+            <div>
+              <strong>Extension aktif</strong>
+              <p>Pasifken cevrimdisi gibi gorun ve yeni oturum alma.</p>
+            </div>
+            <input id="extensionEnabled" type="checkbox" checked />
+          </label>
+
+          <label class="toggle-row">
+            <div>
+              <strong>Online gorun</strong>
+              <p>Kapaliyken arkadas listesinde offline gibi gorunursun.</p>
+            </div>
+            <input id="appearOnline" type="checkbox" checked />
+          </label>
+
+          <label class="toggle-row">
+            <div>
+              <strong>Surpriz efektlere izin ver</strong>
+              <p>Kapaliyken aktif sekmede anlik bam efektleri gosterilmez.</p>
+            </div>
+            <input id="allowSurprise" type="checkbox" checked />
+          </label>
+        </section>
+
+        <button id="openBoardButton" type="submit">Paneli Ac</button>
       </form>
 
-      <p class="hint">
-        Sync kodunu sadece bir kez paylasman yeterli. Sonrasi arkadas listesinden ilerler.
+      <section class="quick-card">
+        <div class="quick-head">
+          <div>
+            <p class="eyebrow">Hizli baslat</p>
+            <h2>Mesaj ve efekt kisayollari</h2>
+          </div>
+          <p class="subcopy">
+            Panoyu acarken taslak veya mesajini da hazir getir. Sonra sadece kisi sec.
+          </p>
+        </div>
+
+        <div class="quick-grid">
+          <label class="quick-field">
+            <span>Hizli mesaj</span>
+            <input id="quickMessage" type="text" maxlength="160" placeholder="Acil bak buna :)" />
+          </label>
+          <button id="openWithMessage" class="secondary-button" type="button">Mesajla Ac</button>
+        </div>
+
+        <div class="effects-shortcuts">
+          <button class="effect-chip" data-effect="crack" data-color="#f4f0ea" type="button">Kirik ekran</button>
+          <button class="effect-chip" data-effect="bullet" data-color="#d8d2ca" type="button">Kursun izi</button>
+          <button class="effect-chip" data-effect="zap" data-color="#f8f2b3" type="button">Yildirim</button>
+          <button class="effect-chip" data-effect="heartburst" data-color="#ff5b7c" type="button">Kalp patlamasi</button>
+          <button class="effect-chip" data-effect="drip" data-color="#cb3046" type="button">Boya damlasi</button>
+          <button class="effect-chip" data-effect="stickman" data-color="#232018" type="button">Stickman</button>
+        </div>
+      </section>
+
+      <p id="statusText" class="hint">
+        Giris yaptiginda Drawing Office sosyal durumunu hesabindan yukler.
       </p>
     </main>
 
+    <script src="node_modules/@supabase/supabase-js/dist/umd/supabase.js"></script>
     <script src="popup.js" type="module"></script>
   </body>
 </html>

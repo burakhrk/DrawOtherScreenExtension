@@ -1,0 +1,141 @@
+:root {
+  --bg: #f4efe7;
+  --text: #1f1b17;
+  --muted: #6c6258;
+  --card: rgba(255, 252, 247, 0.94);
+  --line: rgba(31, 27, 23, 0.12);
+  --accent: #d55d3f;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(213, 93, 63, 0.16), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(73, 131, 255, 0.14), transparent 28%),
+    var(--bg);
+}
+
+.site-shell,
+.doc-shell {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 40px 20px 64px;
+}
+
+.hero-card,
+.info-card,
+.doc-shell {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: 0 14px 36px rgba(41, 27, 18, 0.08);
+}
+
+.hero-card {
+  padding: 28px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.04;
+}
+
+.lede {
+  max-width: 700px;
+  margin: 16px 0 0;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.cta-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+.primary,
+.secondary,
+.back-link {
+  text-decoration: none;
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 700;
+}
+
+.primary {
+  background: linear-gradient(135deg, var(--accent), #eb7f47);
+  color: white;
+}
+
+.secondary {
+  background: #f2e3d3;
+  color: var(--text);
+}
+
+.grid {
+  margin-top: 18px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.info-card {
+  padding: 20px;
+}
+
+.info-card h2,
+.doc-shell h2 {
+  margin-top: 0;
+}
+
+.info-card p,
+.doc-shell p {
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.doc-shell {
+  padding: 28px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+@media (max-width: 860px) {
+  h1 {
+    font-size: 34px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

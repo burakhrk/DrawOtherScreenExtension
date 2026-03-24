@@ -4,11 +4,13 @@
   "version": "0.1.0",
   "description": "Iki kullanici arasinda canli cizim ve sohbet deneyimi sunan Chrome extension.",
   "permissions": [
+    "identity",
     "storage",
     "tabs"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://euzeprutflhfavzxuwfs.supabase.co/*"
   ],
   "background": {
     "service_worker": "background.js"

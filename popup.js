@@ -1,13 +1,30 @@
-const form = document.getElementById("session-form");
-const displayNameInput = document.getElementById("displayName");
-const serverUrlInput = document.getElementById("serverUrl");
+import { track } from "./lib/analytics.js";
+import { signInWithGoogle, signOut } from "./lib/auth.js";
+import { QUICK_ACTION_KEY, PROFILE_STORAGE_KEY } from "./lib/constants.js";
+import { getLocalObject, setLocalObject } from "./lib/chrome-storage.js";
+import { bootstrap, setPreferences } from "./lib/drawing-office-social-client.js";
 
-const STORAGE_KEY = "sync-sketch-profile";
 const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
+
+const form = document.getElementById("session-form");
+const serverUrlInput = document.getElementById("serverUrl");
+const extensionEnabledInput = document.getElementById("extensionEnabled");
+const appearOnlineInput = document.getElementById("appearOnline");
+const allowSurpriseInput = document.getElementById("allowSurprise");
+const quickMessageInput = document.getElementById("quickMessage");
+const openWithMessageButton = document.getElementById("openWithMessage");
+const effectShortcutButtons = Array.from(document.querySelectorAll(".effect-chip"));
+const accountTitle = document.getElementById("accountTitle");
+const accountSubtitle = document.getElementById("accountSubtitle");
+const signInButton = document.getElementById("signInButton");
+const signOutButton = document.getElementById("signOutButton");
+const statusText = document.getElementById("statusText");
+const openBoardButton = document.getElementById("openBoardButton");
+
+let currentState = null;
 
 function normalizeServerUrl(value) {
   const trimmed = value.trim();
-
   if (!trimmed) {
     return DEFAULT_SERVER_URL;
   }
@@ -16,41 +33,179 @@ function normalizeServerUrl(value) {
   return url.toString().replace(/\/$/, "");
 }
 
-async function hydrateForm() {
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
-  const profile = stored[STORAGE_KEY];
+function toggleAuthenticatedUI(isAuthenticated) {
+  form.classList.toggle("is-disabled", !isAuthenticated);
+  openWithMessageButton.disabled = !isAuthenticated;
+  openBoardButton.disabled = !isAuthenticated;
 
-  if (!profile) {
-    serverUrlInput.value = DEFAULT_SERVER_URL;
+  for (const button of effectShortcutButtons) {
+    button.disabled = !isAuthenticated;
+  }
+
+  signInButton.classList.toggle("hidden", isAuthenticated);
+  signOutButton.classList.toggle("hidden", !isAuthenticated);
+}
+
+async function openBoard(quickAction = null) {
+  const storedProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
+  const serverUrl = normalizeServerUrl(serverUrlInput.value);
+
+  await setLocalObject(PROFILE_STORAGE_KEY, {
+    ...storedProfile,
+    serverUrl,
+  });
+
+  if (quickAction) {
+    await setLocalObject(QUICK_ACTION_KEY, quickAction);
+  } else {
+    await chrome.storage.local.remove(QUICK_ACTION_KEY);
+  }
+
+  const url = new URL(chrome.runtime.getURL("board.html"));
+  url.searchParams.set("serverUrl", serverUrl);
+  await chrome.tabs.create({ url: url.toString() });
+  window.close();
+}
+
+async function applyBootstrapState(state) {
+  currentState = state;
+
+  if (!state) {
+    accountTitle.textContent = "Google ile giris bekleniyor";
+    accountSubtitle.textContent = "Oturum acinca arkadaslarin ve tercihler tekrar yuklenecek.";
+    statusText.textContent = "Giris yapmadan panel acilmaz.";
+    serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
+    toggleAuthenticatedUI(false);
     return;
   }
 
-  displayNameInput.value = profile.displayName ?? "";
-  serverUrlInput.value = profile.serverUrl ?? DEFAULT_SERVER_URL;
+  const localProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
+  serverUrlInput.value = localProfile.serverUrl || DEFAULT_SERVER_URL;
+  extensionEnabledInput.checked = state.preferences.extensionEnabled;
+  appearOnlineInput.checked = state.preferences.appearOnline;
+  allowSurpriseInput.checked = state.preferences.allowSurprise;
+  accountTitle.textContent = state.user.displayName;
+  accountSubtitle.textContent = state.user.email || "Drawing Office hesabi baglandi.";
+  statusText.textContent = `${state.friends.length} arkadas, ${state.incomingRequests.length} gelen istek hazir.`;
+  toggleAuthenticatedUI(true);
 }
+
+async function refreshBootstrapState() {
+  try {
+    const state = await bootstrap();
+    await applyBootstrapState(state);
+  } catch (error) {
+    console.error(error);
+    statusText.textContent = error.message || "Hesap durumu yuklenemedi.";
+    toggleAuthenticatedUI(false);
+  }
+}
+
+async function updatePreferenceState() {
+  if (!currentState) {
+    return;
+  }
+
+  try {
+    const state = await setPreferences({
+      extensionEnabled: extensionEnabledInput.checked,
+      appearOnline: appearOnlineInput.checked,
+      allowSurprise: allowSurpriseInput.checked,
+    });
+    await applyBootstrapState(state);
+  } catch (error) {
+    console.error(error);
+    statusText.textContent = error.message || "Tercihler kaydedilemedi.";
+  }
+}
+
+signInButton.addEventListener("click", async () => {
+  statusText.textContent = "Google oturumu aciliyor...";
+  signInButton.disabled = true;
+
+  try {
+    await signInWithGoogle();
+    await refreshBootstrapState();
+  } catch (error) {
+    console.error(error);
+    statusText.textContent = error.message || "Google girisi basarisiz oldu.";
+  } finally {
+    signInButton.disabled = false;
+  }
+});
+
+signOutButton.addEventListener("click", async () => {
+  signOutButton.disabled = true;
+
+  try {
+    await signOut();
+    await applyBootstrapState(null);
+  } catch (error) {
+    console.error(error);
+    statusText.textContent = error.message || "Cikis yapilamadi.";
+  } finally {
+    signOutButton.disabled = false;
+  }
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
-  const existingProfile = stored[STORAGE_KEY];
-  const payload = {
-    userId: existingProfile?.userId ?? crypto.randomUUID(),
-    deviceKey: existingProfile?.deviceKey ?? crypto.randomUUID(),
-    displayName: displayNameInput.value.trim(),
-    serverUrl: normalizeServerUrl(serverUrlInput.value)
-  };
+  if (!currentState) {
+    statusText.textContent = "Once Google ile giris yap.";
+    return;
+  }
 
-  await chrome.storage.local.set({ [STORAGE_KEY]: payload });
+  await track("Extension Installed", {
+    screen: "popup",
+    surface: "open-board",
+    result: "success",
+  });
 
-  const url = new URL(chrome.runtime.getURL("board.html"));
-  url.searchParams.set("userId", payload.userId);
-  url.searchParams.set("deviceKey", payload.deviceKey);
-  url.searchParams.set("displayName", payload.displayName);
-  url.searchParams.set("serverUrl", payload.serverUrl);
-
-  await chrome.tabs.create({ url: url.toString() });
-  window.close();
+  await openBoard();
 });
 
-hydrateForm();
+openWithMessageButton.addEventListener("click", async () => {
+  if (!currentState) {
+    statusText.textContent = "Once Google ile giris yap.";
+    return;
+  }
+
+  const text = quickMessageInput.value.trim();
+  await openBoard(text ? {
+    type: "message",
+    text,
+    label: "Hizli mesaj",
+  } : null);
+});
+
+for (const button of effectShortcutButtons) {
+  button.addEventListener("click", async () => {
+    if (!currentState) {
+      statusText.textContent = "Once Google ile giris yap.";
+      return;
+    }
+
+    await openBoard({
+      type: "effect",
+      effect: button.dataset.effect,
+      color: button.dataset.color || "#232018",
+      size: 6,
+      label: button.textContent.trim(),
+    });
+  });
+}
+
+extensionEnabledInput.addEventListener("change", () => {
+  void updatePreferenceState();
+});
+
+appearOnlineInput.addEventListener("change", () => {
+  void updatePreferenceState();
+});
+
+allowSurpriseInput.addEventListener("change", () => {
+  void updatePreferenceState();
+});
+
+void refreshBootstrapState();

@@ -1,13 +1,14 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const { WebSocketServer } = require("ws");
 
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "0.0.0.0";
 const dataFile = process.env.DATA_FILE || path.join(__dirname, "server-data.json");
 const reconnectGraceMs = Number(process.env.RECONNECT_GRACE_MS || 8000);
+const supabaseUrl = process.env.SUPABASE_URL || "https://euzeprutflhfavzxuwfs.supabase.co";
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1emVwcnV0ZmxoZmF2enh1d2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODIzMTgsImV4cCI6MjA4OTI1ODMxOH0.C80nlS1Y_p8faRp2vHkRpGfVoYRubHH9Ja7yfxyPmbw";
 
 const sessions = new Map();
 const socketsByUserId = new Map();
@@ -42,10 +43,6 @@ function writeStore(store) {
   fs.writeFileSync(dataFile, JSON.stringify(store, null, 2));
 }
 
-function hashDeviceKey(deviceKey) {
-  return crypto.createHash("sha256").update(deviceKey).digest("hex");
-}
-
 const store = readStore();
 
 function ensureUserRecord(userId, displayName) {
@@ -54,7 +51,12 @@ function ensureUserRecord(userId, displayName) {
       userId,
       displayName: displayName || "Misafir",
       friends: [],
-      incomingRequests: []
+      incomingRequests: [],
+      preferences: {
+        extensionEnabled: true,
+        appearOnline: true,
+        allowSurprise: true
+      }
     };
   } else if (displayName && displayName.trim()) {
     store.users[userId].displayName = displayName;
@@ -66,6 +68,14 @@ function ensureUserRecord(userId, displayName) {
 
   if (!Array.isArray(store.users[userId].incomingRequests)) {
     store.users[userId].incomingRequests = [];
+  }
+
+  if (!store.users[userId].preferences) {
+    store.users[userId].preferences = {
+      extensionEnabled: true,
+      appearOnline: true,
+      allowSurprise: true
+    };
   }
 
   return store.users[userId];
@@ -99,6 +109,16 @@ function isOnline(userId) {
   return getSocketMap(userId).size > 0;
 }
 
+function isVisibleOnline(userId) {
+  const user = store.users[userId];
+  return Boolean(
+    user &&
+    user.preferences?.extensionEnabled !== false &&
+    user.preferences?.appearOnline !== false &&
+    isOnline(userId)
+  );
+}
+
 function sendToSocket(socket, payload) {
   if (!socket || socket.readyState !== socket.OPEN) {
     return;
@@ -124,6 +144,19 @@ function sendToClient(userId, clientId, payload) {
   return false;
 }
 
+function broadcastPresenceState() {
+  const onlineUserIds = Object.values(store.users)
+    .filter((user) => isVisibleOnline(user.userId))
+    .map((user) => user.userId);
+
+  for (const socket of wss.clients) {
+    sendToSocket(socket, {
+      type: "presence-state",
+      onlineUserIds
+    });
+  }
+}
+
 function getFriends(userId) {
   const user = store.users[userId];
   if (!user) {
@@ -136,7 +169,7 @@ function getFriends(userId) {
     .map((friend) => ({
       userId: friend.userId,
       displayName: friend.displayName,
-      online: isOnline(friend.userId)
+      online: isVisibleOnline(friend.userId)
     }))
     .sort((left, right) => {
       if (left.online !== right.online) {
@@ -274,36 +307,45 @@ function closeUserSession(userId, reason) {
   }
 }
 
-function validateUserIdentity(message, socket) {
-  if (!message.userId || !message.clientId || !message.deviceKey) {
+async function fetchVerifiedUser(accessToken) {
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: "GET",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
+
+async function validateUserIdentity(message, socket) {
+  if (!message.userId || !message.clientId || !message.accessToken) {
     sendToSocket(socket, {
       type: "error",
-      message: "Kayit icin userId, clientId ve deviceKey gerekli."
+      message: "Kayit icin userId, clientId ve access token gerekli."
+    });
+    socket.close();
+    return null;
+  }
+
+  const verifiedUser = await fetchVerifiedUser(message.accessToken);
+
+  if (!verifiedUser || verifiedUser.id !== message.userId) {
+    sendToSocket(socket, {
+      type: "error",
+      message: "JWT dogrulamasi basarisiz."
     });
     socket.close();
     return null;
   }
 
   const user = ensureUserRecord(message.userId, message.displayName || "Misafir");
-  const incomingHash = hashDeviceKey(message.deviceKey);
-
-  if (!user.deviceKeyHash) {
-    user.deviceKeyHash = incomingHash;
-    writeStore(store);
-  } else if (user.deviceKeyHash !== incomingHash) {
-    sendToSocket(socket, {
-      type: "error",
-      message: "Bu kullanici kimligi baska bir cihaz anahtariyla kullaniliyor."
-    });
-    socket.close();
-    return null;
-  }
-
   return user;
-}
-
-function areFriends(userId, otherUserId) {
-  return store.users[userId]?.friends.includes(otherUserId) ?? false;
 }
 
 const httpServer = http.createServer((request, response) => {
@@ -343,7 +385,7 @@ wss.on("connection", (socket) => {
     socket.isAlive = true;
   });
 
-  socket.on("message", (raw) => {
+  socket.on("message", async (raw) => {
     let message;
 
     try {
@@ -353,13 +395,19 @@ wss.on("connection", (socket) => {
     }
 
     if (message.type === "register-user") {
-      const user = validateUserIdentity(message, socket);
+      const user = await validateUserIdentity(message, socket);
       if (!user) {
         return;
       }
 
       socket.userId = user.userId;
       socket.clientId = message.clientId;
+      user.preferences = {
+        extensionEnabled: message.preferences?.extensionEnabled !== false,
+        appearOnline: message.preferences?.appearOnline !== false,
+        allowSurprise: message.preferences?.allowSurprise !== false
+      };
+      writeStore(store);
 
       const sockets = getSocketMap(user.userId);
       sockets.set(socket.clientId, socket);
@@ -375,6 +423,7 @@ wss.on("connection", (socket) => {
         sendSessionStarted(user.userId, activeSession, true);
       }
 
+      broadcastPresenceState();
       notifySocialChange(user.userId);
       return;
     }
@@ -479,6 +528,28 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (message.type === "update-profile") {
+      const nextName = String(message.displayName || "").trim().slice(0, 32);
+
+      if (!nextName) {
+        sendToSocket(socket, {
+          type: "error",
+          message: "Profil adi bos olamaz."
+        });
+        return;
+      }
+
+      user.displayName = nextName;
+      writeStore(store);
+
+      sendToSocket(socket, {
+        type: "profile-updated",
+        displayName: nextName
+      });
+      notifySocialChange(userId);
+      return;
+    }
+
     if (message.type === "start-session") {
       const { targetUserId, mode } = message;
 
@@ -490,18 +561,18 @@ wss.on("connection", (socket) => {
         return;
       }
 
-      if (!areFriends(userId, targetUserId)) {
+      if (user.preferences?.extensionEnabled === false) {
         sendToSocket(socket, {
           type: "error",
-          message: "Yalnizca kabul edilmis arkadaslarla oturum baslatabilirsin."
+          message: "Pasif moddayken oturum baslatamazsin."
         });
         return;
       }
 
-      if (!isOnline(targetUserId)) {
+      if (!isVisibleOnline(targetUserId)) {
         sendToSocket(socket, {
           type: "error",
-          message: "Secilen kullanici su an offline."
+          message: "Secilen kullanici su an musait degil."
         });
         return;
       }
@@ -536,6 +607,7 @@ wss.on("connection", (socket) => {
 
       sendSessionStarted(userId, session, false);
       sendSessionStarted(targetUserId, session, false);
+      broadcastPresenceState();
       return;
     }
 
@@ -642,6 +714,7 @@ wss.on("connection", (socket) => {
     }
 
     notifySocialChange(userId);
+    broadcastPresenceState();
   });
 });
 

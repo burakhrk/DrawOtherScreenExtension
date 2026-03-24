@@ -26,6 +26,14 @@
           <button id="copySyncCode" class="ghost">Kopyala</button>
         </section>
 
+        <form id="profileForm" class="pair-form profile-form">
+          <label>
+            <span>Profil adin</span>
+            <input id="profileNameInput" type="text" maxlength="32" placeholder="Burak" />
+          </label>
+          <button type="submit">Profili Guncelle</button>
+        </form>
+
         <form id="pairForm" class="pair-form">
           <label>
             <span>Bir kullanici ile sync ol</span>
@@ -60,6 +68,10 @@
                 <option value="crack">Kirik ekran</option>
                 <option value="scribble">Karalama</option>
                 <option value="drip">Damlayan boya</option>
+                <option value="zap">Yildirim</option>
+                <option value="heartburst">Kalp patlamasi</option>
+                <option value="bullet">Kursun izi</option>
+                <option value="stickman">Stickman</option>
               </select>
             </label>
 
@@ -74,6 +86,7 @@
             </label>
 
             <button id="clearCanvas" class="ghost">Temizle</button>
+            <button id="sendDraft" class="ghost">Taslagi Gonder</button>
             <button id="leaveSession" class="ghost">Oturumu Bitir</button>
           </div>
         </header>
@@ -103,6 +116,7 @@
       </aside>
     </main>
 
+    <script src="node_modules/@supabase/supabase-js/dist/umd/supabase.js"></script>
     <script src="board.js" type="module"></script>
   </body>
 </html>

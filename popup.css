@@ -26,6 +26,8 @@ body {
 
 .popup-shell {
   padding: 20px;
+  display: grid;
+  gap: 16px;
 }
 
 .hero {
@@ -50,6 +52,12 @@ h1 {
   line-height: 1.08;
 }
 
+h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
 .subcopy,
 .hint {
   color: var(--muted);
@@ -62,9 +70,13 @@ h1 {
 }
 
 .session-form {
-  margin-top: 16px;
   display: grid;
   gap: 12px;
+}
+
+.session-form.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .session-form label {
@@ -83,6 +95,39 @@ h1 {
   background: rgba(255, 255, 255, 0.9);
 }
 
+.settings-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toggle-row strong {
+  display: block;
+  font-size: 13px;
+}
+
+.toggle-row p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.toggle-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
 .session-form button {
   border: none;
   border-radius: 999px;
@@ -96,6 +141,106 @@ h1 {
 
 .session-form button:hover {
   background: linear-gradient(135deg, var(--accent-dark), #dc6b38);
+}
+
+.account-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-actions button,
+.ghost {
+  border: none;
+  border-radius: 999px;
+  padding: 11px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ghost {
+  background: #f3e5d5;
+  color: var(--text);
+}
+
+.danger {
+  background: #f9dfdd;
+}
+
+.quick-card {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(84, 135, 255, 0.12), transparent 30%),
+    rgba(255, 252, 247, 0.94);
+  box-shadow: 0 10px 30px rgba(56, 37, 22, 0.06);
+}
+
+.quick-head {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.quick-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.secondary-button,
+.effect-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.hidden {
+  display: none;
+}
+
+.secondary-button {
+  padding: 11px 14px;
+}
+
+.effects-shortcuts {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.effect-chip {
+  padding: 10px 12px;
+}
+
+.effect-chip:hover,
+.secondary-button:hover {
+  border-color: rgba(213, 93, 63, 0.42);
+  background: #fff7f1;
 }
 
 .hint {

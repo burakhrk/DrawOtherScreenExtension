@@ -1,16 +1,28 @@
-const params = new URLSearchParams(window.location.search);
+import { track } from "./lib/analytics.js";
+import { QUICK_ACTION_KEY } from "./lib/constants.js";
+import { getAccessToken, getCurrentUser } from "./lib/auth.js";
+import {
+  acceptFriendRequest,
+  bootstrap,
+  endSession as endSocialSession,
+  getSocialState,
+  rejectFriendRequest,
+  sendFriendRequest,
+  startSession as startSocialSession,
+  updateProfile,
+} from "./lib/drawing-office-social-client.js";
 
-const userId = params.get("userId") || crypto.randomUUID();
-const deviceKey = params.get("deviceKey") || crypto.randomUUID();
-const clientId = crypto.randomUUID();
-const displayName = params.get("displayName") || "Misafir";
+const params = new URLSearchParams(window.location.search);
 const rawServerUrl = params.get("serverUrl") || "https://sync-sketch-party.onrender.com";
+const clientId = crypto.randomUUID();
 
 const profileName = document.getElementById("profileName");
 const profileMeta = document.getElementById("profileMeta");
 const globalStatus = document.getElementById("globalStatus");
 const syncCode = document.getElementById("syncCode");
 const copySyncCodeButton = document.getElementById("copySyncCode");
+const profileForm = document.getElementById("profileForm");
+const profileNameInput = document.getElementById("profileNameInput");
 const pairForm = document.getElementById("pairForm");
 const pairCodeInput = document.getElementById("pairCodeInput");
 const friendCount = document.getElementById("friendCount");
@@ -28,11 +40,17 @@ const effectPicker = document.getElementById("effectPicker");
 const colorPicker = document.getElementById("colorPicker");
 const brushSize = document.getElementById("brushSize");
 const clearCanvasButton = document.getElementById("clearCanvas");
+const sendDraftButton = document.getElementById("sendDraft");
 const leaveSessionButton = document.getElementById("leaveSession");
 const canvas = document.getElementById("drawCanvas");
 const context = canvas.getContext("2d");
 
 let socket;
+let userId = "";
+let displayName = "Misafir";
+let extensionEnabled = true;
+let appearOnline = true;
+let allowSurprise = true;
 let isDrawing = false;
 let lastPoint = null;
 let activeStrokeId = null;
@@ -40,24 +58,22 @@ let friends = [];
 let incomingRequests = [];
 let outgoingRequests = [];
 let currentSession = null;
+let currentRpcSession = null;
+let draftSegments = [];
+let pendingDraftTarget = null;
+let onlineUserIds = new Set();
 
 function toWebSocketUrl(value) {
   const url = new URL(value);
-
   if (url.protocol === "http:") {
     url.protocol = "ws:";
   } else if (url.protocol === "https:") {
     url.protocol = "wss:";
   }
-
   return url.toString();
 }
 
 const serverUrl = toWebSocketUrl(rawServerUrl);
-
-profileName.textContent = displayName;
-profileMeta.textContent = `Sunucu: ${serverUrl}`;
-syncCode.textContent = userId;
 
 function resizeCanvas() {
   const hadContent = canvas.width > 0 && canvas.height > 0;
@@ -103,7 +119,7 @@ function addMessage(message) {
 
   const time = new Date(message.timestamp).toLocaleTimeString("tr-TR", {
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
   });
 
   item.innerHTML = `
@@ -126,71 +142,66 @@ function hexToRgba(hex, alpha) {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-function drawCrack(segment) {
+function drawCrack(segment, ctx = context) {
   const center = segment.to;
   const baseRadius = Math.max(24, segment.size * 6);
+  ctx.save();
+  ctx.strokeStyle = hexToRgba(segment.color, 0.85);
+  ctx.lineWidth = Math.max(1, segment.size * 0.45);
 
-  context.save();
-  context.strokeStyle = hexToRgba(segment.color, 0.85);
-  context.lineWidth = Math.max(1, segment.size * 0.45);
-
-  for (let index = 0; index < 8; index += 1) {
-    const angle = (Math.PI * 2 * index) / 8 + ((segment.seed || 0) * 0.35);
-    const radius = baseRadius * (0.75 + ((index % 3) * 0.18));
-    const branchX = center.x + Math.cos(angle) * radius;
-    const branchY = center.y + Math.sin(angle) * radius;
-
-    context.beginPath();
-    context.moveTo(center.x, center.y);
-    context.lineTo(branchX, branchY);
-    context.stroke();
+  for (let index = 0; index < 10; index += 1) {
+    const angle = (Math.PI * 2 * index) / 10 + ((segment.seed || 0) * 0.35);
+    const radius = baseRadius * (0.72 + ((index % 4) * 0.16));
+    const x = center.x + Math.cos(angle) * radius;
+    const y = center.y + Math.sin(angle) * radius;
+    ctx.beginPath();
+    ctx.moveTo(center.x, center.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
   }
 
-  context.fillStyle = hexToRgba("#ffffff", 0.3);
-  context.beginPath();
-  context.arc(center.x, center.y, Math.max(4, segment.size * 0.8), 0, Math.PI * 2);
-  context.fill();
-  context.restore();
+  ctx.fillStyle = hexToRgba("#ffffff", 0.36);
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, Math.max(4, segment.size), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
-function drawScribble(segment) {
+function drawScribble(segment, ctx = context) {
   const center = segment.to;
   const radius = Math.max(14, segment.size * 3.4);
+  ctx.save();
+  ctx.strokeStyle = hexToRgba(segment.color, 0.94);
+  ctx.lineWidth = Math.max(2, segment.size * 0.95);
+  ctx.beginPath();
 
-  context.save();
-  context.strokeStyle = hexToRgba(segment.color, 0.9);
-  context.lineWidth = Math.max(2, segment.size * 0.9);
-  context.beginPath();
-
-  for (let index = 0; index <= 24; index += 1) {
-    const angle = (Math.PI * 6 * index) / 24;
-    const wobble = radius * (0.75 + (Math.sin(angle * 1.7 + (segment.seed || 0)) * 0.22));
+  for (let index = 0; index <= 28; index += 1) {
+    const angle = (Math.PI * 7 * index) / 28;
+    const wobble = radius * (0.76 + (Math.sin(angle * 1.9 + (segment.seed || 0)) * 0.24));
     const x = center.x + Math.cos(angle) * wobble;
     const y = center.y + Math.sin(angle) * wobble;
-
     if (index === 0) {
-      context.moveTo(x, y);
+      ctx.moveTo(x, y);
     } else {
-      context.lineTo(x, y);
+      ctx.lineTo(x, y);
     }
   }
 
-  context.stroke();
-  context.restore();
+  ctx.stroke();
+  ctx.restore();
 }
 
-function drawDrip(segment) {
+function drawDrip(segment, ctx = context) {
   const point = segment.to;
   const height = Math.max(30, segment.size * 10);
   const width = Math.max(8, segment.size * 1.8);
-
-  context.save();
-  context.strokeStyle = hexToRgba(segment.color, 0.92);
-  context.fillStyle = hexToRgba(segment.color, 0.26);
-  context.lineWidth = width;
-  context.beginPath();
-  context.moveTo(point.x, point.y);
-  context.bezierCurveTo(
+  ctx.save();
+  ctx.strokeStyle = hexToRgba(segment.color, 0.92);
+  ctx.fillStyle = hexToRgba(segment.color, 0.26);
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(point.x, point.y);
+  ctx.bezierCurveTo(
     point.x + width * 0.2,
     point.y + height * 0.28,
     point.x - width * 0.25,
@@ -198,45 +209,108 @@ function drawDrip(segment) {
     point.x,
     point.y + height
   );
-  context.stroke();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(point.x, point.y + height + width * 0.1, width * 0.9, width * 1.15, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
 
-  context.beginPath();
-  context.ellipse(point.x, point.y + height + width * 0.1, width * 0.9, width * 1.15, 0, 0, Math.PI * 2);
-  context.fill();
-  context.restore();
+function drawZap(segment, ctx = context) {
+  const start = segment.from;
+  const end = segment.to;
+  const steps = 6;
+  ctx.save();
+  ctx.strokeStyle = hexToRgba("#f8f2b3", 0.95);
+  ctx.lineWidth = Math.max(2, segment.size * 0.8);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+
+  for (let index = 1; index < steps; index += 1) {
+    const progress = index / steps;
+    const x = start.x + ((end.x - start.x) * progress) + ((index % 2 === 0 ? -1 : 1) * segment.size * 5);
+    const y = start.y + ((end.y - start.y) * progress);
+    ctx.lineTo(x, y);
+  }
+
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHeartburst(segment, ctx = context) {
+  const center = segment.to;
+  const hearts = 6;
+  ctx.save();
+  ctx.fillStyle = hexToRgba(segment.color, 0.92);
+
+  for (let index = 0; index < hearts; index += 1) {
+    const angle = (Math.PI * 2 * index) / hearts;
+    const distance = segment.size * 5 + (index % 2) * 10;
+    const x = center.x + Math.cos(angle) * distance;
+    const y = center.y + Math.sin(angle) * distance;
+    const size = Math.max(8, segment.size * 1.8);
+    ctx.beginPath();
+    ctx.moveTo(x, y + size * 0.25);
+    ctx.bezierCurveTo(x - size, y - size * 0.7, x - size * 1.5, y + size * 0.8, x, y + size * 1.5);
+    ctx.bezierCurveTo(x + size * 1.5, y + size * 0.8, x + size, y - size * 0.7, x, y + size * 0.25);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawBullet(segment, ctx = context) {
+  const center = segment.to;
+  drawCrack({ ...segment, size: segment.size * 0.8, to: center }, ctx);
+  ctx.save();
+  ctx.fillStyle = hexToRgba("#201d17", 0.94);
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, Math.max(4, segment.size * 0.8), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawStickman(segment, ctx = context) {
+  const center = segment.to;
+  const scale = Math.max(12, segment.size * 2.2);
+  ctx.save();
+  ctx.strokeStyle = hexToRgba(segment.color, 0.96);
+  ctx.lineWidth = Math.max(2, segment.size * 0.7);
+  ctx.beginPath();
+  ctx.arc(center.x, center.y - scale * 1.3, scale * 0.45, 0, Math.PI * 2);
+  ctx.moveTo(center.x, center.y - scale * 0.85);
+  ctx.lineTo(center.x, center.y + scale * 0.7);
+  ctx.moveTo(center.x - scale * 0.8, center.y - scale * 0.2);
+  ctx.lineTo(center.x + scale * 0.8, center.y - scale * 0.55);
+  ctx.moveTo(center.x, center.y + scale * 0.7);
+  ctx.lineTo(center.x - scale * 0.8, center.y + scale * 1.6);
+  ctx.moveTo(center.x, center.y + scale * 0.7);
+  ctx.lineTo(center.x + scale * 0.9, center.y + scale * 1.5);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function denormalizePoint(point) {
   const rect = canvas.getBoundingClientRect();
   return {
     x: (point.x / 1000) * rect.width,
-    y: (point.y / 1000) * rect.height
+    y: (point.y / 1000) * rect.height,
   };
 }
 
 function drawSegment(segment) {
   const drawableSegment = segment.normalized
-    ? {
-        ...segment,
-        from: denormalizePoint(segment.from),
-        to: denormalizePoint(segment.to)
-      }
+    ? { ...segment, from: denormalizePoint(segment.from), to: denormalizePoint(segment.to) }
     : segment;
 
-  if (drawableSegment.effect === "crack") {
-    drawCrack(drawableSegment);
-    return;
-  }
-
-  if (drawableSegment.effect === "scribble") {
-    drawScribble(drawableSegment);
-    return;
-  }
-
-  if (drawableSegment.effect === "drip") {
-    drawDrip(drawableSegment);
-    return;
-  }
+  if (drawableSegment.effect === "crack") return drawCrack(drawableSegment);
+  if (drawableSegment.effect === "scribble") return drawScribble(drawableSegment);
+  if (drawableSegment.effect === "drip") return drawDrip(drawableSegment);
+  if (drawableSegment.effect === "zap") return drawZap(drawableSegment);
+  if (drawableSegment.effect === "heartburst") return drawHeartburst(drawableSegment);
+  if (drawableSegment.effect === "bullet") return drawBullet(drawableSegment);
+  if (drawableSegment.effect === "stickman") return drawStickman(drawableSegment);
 
   context.strokeStyle = drawableSegment.color;
   context.lineWidth = drawableSegment.size;
@@ -258,14 +332,57 @@ function send(payload) {
   }
 }
 
+function normalizePoint(point) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: rect.width > 0 ? (point.x / rect.width) * 1000 : 0,
+    y: rect.height > 0 ? (point.y / rect.height) * 1000 : 0,
+  };
+}
+
+function toOutboundSegment(segment) {
+  return {
+    ...segment,
+    normalized: true,
+    from: normalizePoint(segment.from),
+    to: normalizePoint(segment.to),
+  };
+}
+
+function storeDraft(segment) {
+  draftSegments.push(toOutboundSegment(segment));
+  updateSessionUI();
+}
+
+function replayDraftToCurrentSession() {
+  if (!currentSession || !currentSession.drawEnabled || draftSegments.length === 0) {
+    return;
+  }
+
+  for (const segment of draftSegments) {
+    send({
+      type: "draw-segment",
+      sessionId: currentSession.sessionId,
+      segment,
+    });
+  }
+
+  addMessage({
+    system: true,
+    text: `${draftSegments.length} taslak oge gonderildi.`,
+  });
+  draftSegments = [];
+  updateSessionUI();
+}
+
 function showSurpriseEffect(segment) {
-  if (!chrome?.runtime?.sendMessage) {
+  if (!extensionEnabled || !allowSurprise || !chrome?.runtime?.sendMessage) {
     return;
   }
 
   chrome.runtime.sendMessage({
     type: "SHOW_SURPRISE_EFFECT",
-    segment
+    segment,
   }).catch(() => {});
 }
 
@@ -274,9 +391,11 @@ function clearSurpriseEffect() {
     return;
   }
 
-  chrome.runtime.sendMessage({
-    type: "CLEAR_SURPRISE_EFFECT"
-  }).catch(() => {});
+  chrome.runtime.sendMessage({ type: "CLEAR_SURPRISE_EFFECT" }).catch(() => {});
+}
+
+function getFriendOnline(friendId) {
+  return onlineUserIds.has(friendId);
 }
 
 function renderRequests() {
@@ -289,8 +408,8 @@ function renderRequests() {
       <strong>${request.displayName}</strong>
       <div class="friend-meta">Sana arkadaslik istegi gonderdi.</div>
       <div class="request-actions">
-        <button class="mini-button" data-action="accept" data-user-id="${request.userId}">Kabul et</button>
-        <button class="mini-button" data-action="reject" data-user-id="${request.userId}">Reddet</button>
+        <button class="mini-button" data-action="accept" data-request-id="${request.id}">Kabul et</button>
+        <button class="mini-button" data-action="reject" data-request-id="${request.id}">Reddet</button>
       </div>
     `;
     requestList.appendChild(card);
@@ -314,15 +433,18 @@ function renderFriends() {
   if (friends.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Henuz kabul edilmis arkadasin yok. Yukaridaki alandan bir sync kodu gonder.";
+    empty.textContent = "Henuz kabul edilmis arkadasin yok. Yukaridaki alandan bir kullanici ID'si gonder.";
     friendsList.appendChild(empty);
     return;
   }
 
   for (const friend of friends) {
+    const online = getFriendOnline(friend.userId);
     const card = document.createElement("article");
     card.className = "friend-card";
-    const disabled = friend.online ? "" : "disabled";
+    const disabled = online ? "" : "disabled";
+    const surpriseDisabled = allowSurprise ? "" : "disabled";
+    const draftDisabled = draftSegments.length > 0 && online ? "" : "disabled";
 
     card.innerHTML = `
       <div class="friend-top">
@@ -330,13 +452,14 @@ function renderFriends() {
           <strong>${friend.displayName}</strong>
           <div class="friend-meta">${friend.userId}</div>
         </div>
-        <span class="status-dot ${friend.online ? "online" : ""}">
-          ${friend.online ? "Online" : "Offline"}
+        <span class="status-dot ${online ? "online" : ""}">
+          ${online ? "Online" : "Offline"}
         </span>
       </div>
       <div class="friend-actions">
-        <button class="mode-button" data-user-id="${friend.userId}" data-mode="send" ${disabled}>Ciz gonder</button>
+        <button class="mode-button" data-user-id="${friend.userId}" data-mode="send" ${disabled} ${allowSurprise ? "" : surpriseDisabled}>Ciz gonder</button>
         <button class="mode-button" data-user-id="${friend.userId}" data-mode="live" ${disabled}>Es zamanli</button>
+        <button class="mode-button" data-user-id="${friend.userId}" data-mode="draft" ${draftDisabled}>Taslak gonder</button>
       </div>
     `;
 
@@ -347,15 +470,20 @@ function renderFriends() {
 function updateSessionUI() {
   const hasSession = Boolean(currentSession);
   chatInput.disabled = !hasSession;
-  clearCanvasButton.disabled = !hasSession;
+  clearCanvasButton.disabled = !hasSession && draftSegments.length === 0;
+  sendDraftButton.disabled = draftSegments.length === 0;
   leaveSessionButton.disabled = !hasSession;
 
   if (!hasSession) {
-    sessionTitle.textContent = "Bir arkadas sec";
-    sessionModeText.textContent = "Cizim baslatmak icin soldan bir kisi sec.";
+    sessionTitle.textContent = draftSegments.length > 0 ? "Taslak hazir" : "Bir arkadas sec";
+    sessionModeText.textContent = draftSegments.length > 0
+      ? `${draftSegments.length} oge hazir. Soldan bir arkadas secip Taslak gonder diyebilirsin.`
+      : "Cizim baslatmak icin soldan bir kisi sec veya once taslak hazirla.";
     presence.textContent = "Arkadas bekleniyor";
     drawGuard.classList.remove("hidden");
-    drawGuard.textContent = "Aktif cizim yok. Soldan bir arkadas secerek mod baslat.";
+    drawGuard.textContent = draftSegments.length > 0
+      ? "Taslagin kaydedildi. Simdi soldan bir alici sec."
+      : "Aktif oturum yok. Burada once ciz, sonra alici secebilirsin.";
     return;
   }
 
@@ -366,81 +494,156 @@ function updateSessionUI() {
 
   sessionTitle.textContent = currentSession.partner.displayName;
   sessionModeText.textContent = `${modeLabel} - ${modeHint}`;
-  presence.textContent = currentSession.partner.online ? "Secilen arkadas online" : "Secilen arkadas offline";
+  presence.textContent = getFriendOnline(currentSession.partner.userId) ? "Secilen arkadas online" : "Secilen arkadas offline";
   drawGuard.classList.add("hidden");
 }
 
-function applySocialState(payload) {
-  friends = payload.friends ?? friends;
-  incomingRequests = payload.incomingRequests ?? incomingRequests;
-  outgoingRequests = payload.outgoingRequests ?? outgoingRequests;
-
-  if (currentSession) {
-    const updatedPartner = friends.find((friend) => friend.userId === currentSession.partner.userId);
-    if (updatedPartner) {
-      currentSession.partner = updatedPartner;
-    }
+function applySocialState(state) {
+  if (!state) {
+    return;
   }
+
+  userId = state.user.id;
+  displayName = state.user.displayName;
+  extensionEnabled = state.preferences.extensionEnabled;
+  appearOnline = state.preferences.appearOnline;
+  allowSurprise = state.preferences.allowSurprise;
+  friends = state.friends;
+  incomingRequests = state.incomingRequests;
+  outgoingRequests = state.outgoingRequests;
+
+  profileName.textContent = displayName;
+  profileNameInput.value = displayName;
+  profileMeta.textContent = extensionEnabled
+    ? `Sunucu: ${serverUrl}`
+    : `Pasif mod - Sunucu: ${serverUrl}`;
+  syncCode.textContent = userId;
 
   renderRequests();
   renderFriends();
   updateSessionUI();
+  setGlobalStatus(appearOnline && extensionEnabled ? "Online" : "Pasif", appearOnline && extensionEnabled);
+}
+
+async function refreshSocialState() {
+  const state = await getSocialState();
+  applySocialState(state);
+}
+
+async function applyQuickAction() {
+  const stored = await chrome.storage.local.get(QUICK_ACTION_KEY);
+  const action = stored[QUICK_ACTION_KEY];
+
+  if (!action) {
+    return;
+  }
+
+  await chrome.storage.local.remove(QUICK_ACTION_KEY);
+
+  if (action.type === "message" && action.text) {
+    chatInput.value = action.text;
+    addMessage({
+      system: true,
+      text: "Hizli mesaj taslagi eklendi. Bir arkadas secip gonderebilirsin.",
+    });
+  }
+
+  if (action.type === "effect" && action.effect) {
+    const rect = canvas.getBoundingClientRect();
+    const point = {
+      x: rect.width * 0.5,
+      y: rect.height * 0.45,
+    };
+
+    const segment = {
+      strokeId: crypto.randomUUID(),
+      effect: action.effect,
+      from: point,
+      to: action.effect === "zap"
+        ? { x: point.x + 90, y: point.y + 40 }
+        : point,
+      color: action.color || colorPicker.value,
+      size: action.size || 6,
+      seed: Math.random() * Math.PI * 2,
+    };
+
+    drawSegment(segment);
+    storeDraft(segment);
+    addMessage({
+      system: true,
+      text: `${action.label || action.effect} hizli taslak olarak eklendi.`,
+    });
+  }
+}
+
+function pointerPosition(event) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+}
+
+function createSegment(effect, point, nextPoint = point) {
+  return {
+    strokeId: crypto.randomUUID(),
+    effect,
+    from: point,
+    to: nextPoint,
+    color: colorPicker.value,
+    size: Number(brushSize.value),
+    seed: Math.random() * Math.PI * 2,
+  };
 }
 
 function connect() {
   setStatus("Baglanti kuruluyor...");
-  setGlobalStatus("Baglaniyor");
   socket = new WebSocket(serverUrl);
 
-  socket.addEventListener("open", () => {
-    send({
-      type: "register-user",
-      userId,
-      clientId,
-      deviceKey,
-      displayName
-    });
-    setStatus("Bagli", "ok");
-    setGlobalStatus("Online", true);
+  socket.addEventListener("open", async () => {
+    try {
+      const accessToken = await getAccessToken();
+
+      if (!accessToken) {
+        setStatus("Oturum zamani dolmus");
+        socket.close();
+        return;
+      }
+
+      send({
+        type: "register-user",
+        userId,
+        clientId,
+        displayName,
+        accessToken,
+        preferences: {
+          extensionEnabled,
+          appearOnline,
+          allowSurprise,
+        },
+      });
+      setStatus("Bagli", "ok");
+    } catch (error) {
+      setStatus(error.message || "Oturum dogrulanamadi");
+      socket.close();
+    }
   });
 
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
 
-    if (message.type === "registered" || message.type === "social-state") {
-      applySocialState(message);
-      if (message.type === "registered") {
-        addMessage({
-          system: true,
-          text: `${message.displayName} olarak baglandin. Sync kodunu paylasip istek gonderebilirsin.`
-        });
-      }
-      return;
-    }
-
-    if (message.type === "friend-request-sent") {
-      pairCodeInput.value = "";
-      setStatus("Istek gonderildi", "ok");
+    if (message.type === "registered") {
       addMessage({
         system: true,
-        text: `${message.friend.displayName} kullanicisina istek gonderildi.`
+        text: `${displayName} olarak baglandin. Arkadaslarin Supabase hesabindan yuklendi.`,
       });
       return;
     }
 
-    if (message.type === "friend-request-accepted") {
-      addMessage({
-        system: true,
-        text: `${message.friend.displayName} istegini kabul etti.`
-      });
-      return;
-    }
-
-    if (message.type === "friend-request-rejected") {
-      addMessage({
-        system: true,
-        text: `${message.friend.displayName} istegini reddetti.`
-      });
+    if (message.type === "presence-state") {
+      onlineUserIds = new Set(message.onlineUserIds || []);
+      renderFriends();
+      updateSessionUI();
       return;
     }
 
@@ -449,7 +652,7 @@ function connect() {
         sessionId: message.sessionId,
         mode: message.mode,
         drawEnabled: message.drawEnabled,
-        partner: message.partner
+        partner: message.partner,
       };
       context.clearRect(0, 0, canvas.width, canvas.height);
       clearSurpriseEffect();
@@ -461,20 +664,40 @@ function connect() {
         system: true,
         text: message.restored
           ? `${message.partner.displayName} ile oturum geri baglandi.`
-          : `${message.partner.displayName} ile yeni bir oturum basladi.`
+          : `${message.partner.displayName} ile yeni bir oturum basladi.`,
       });
+
+      if (
+        pendingDraftTarget &&
+        pendingDraftTarget.userId === message.partner.userId &&
+        currentSession.drawEnabled &&
+        draftSegments.length > 0
+      ) {
+        replayDraftToCurrentSession();
+        pendingDraftTarget = null;
+      }
+
+      void getSocialState().then((state) => {
+        const matched = state?.activeSessions.find((session) =>
+          [session.initiator_id, session.recipient_id].includes(message.partner.userId)
+        );
+        if (matched) {
+          currentRpcSession = matched;
+        }
+      }).catch(() => {});
       return;
     }
 
     if (message.type === "session-ended") {
       currentSession = null;
+      currentRpcSession = null;
       resetPointerState();
       context.clearRect(0, 0, canvas.width, canvas.height);
       clearSurpriseEffect();
       updateSessionUI();
       addMessage({
         system: true,
-        text: message.reason || "Oturum kapatildi."
+        text: message.reason || "Oturum kapatildi.",
       });
       return;
     }
@@ -500,13 +723,14 @@ function connect() {
       setStatus(message.message);
       addMessage({
         system: true,
-        text: message.message
+        text: message.message,
       });
     }
   });
 
   socket.addEventListener("close", () => {
     currentSession = null;
+    currentRpcSession = null;
     resetPointerState();
     updateSessionUI();
     setStatus("Baglanti koptu, tekrar deneniyor...");
@@ -519,54 +743,26 @@ function connect() {
   });
 }
 
-function pointerPosition(event) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top
-  };
-}
-
-function normalizePoint(point) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: rect.width > 0 ? (point.x / rect.width) * 1000 : 0,
-    y: rect.height > 0 ? (point.y / rect.height) * 1000 : 0
-  };
-}
-
 canvas.addEventListener("pointerdown", (event) => {
-  if (!currentSession?.drawEnabled) {
-    return;
-  }
-
   const point = pointerPosition(event);
   const selectedEffect = effectPicker.value;
 
   if (selectedEffect !== "draw") {
-    const segment = {
-      strokeId: crypto.randomUUID(),
-      effect: selectedEffect,
-      from: point,
-      to: point,
-      color: colorPicker.value,
-      size: Number(brushSize.value),
-      seed: Math.random() * Math.PI * 2,
-      normalizedFrom: normalizePoint(point),
-      normalizedTo: normalizePoint(point)
-    };
-
+    const nextPoint = selectedEffect === "zap"
+      ? { x: point.x + 90, y: point.y + 40 }
+      : point;
+    const segment = createSegment(selectedEffect, point, nextPoint);
     drawSegment(segment);
-    send({
-      type: "draw-segment",
-      sessionId: currentSession.sessionId,
-      segment: {
-        ...segment,
-        normalized: true,
-        from: segment.normalizedFrom,
-        to: segment.normalizedTo
-      }
-    });
+
+    if (currentSession?.drawEnabled) {
+      send({
+        type: "draw-segment",
+        sessionId: currentSession.sessionId,
+        segment: toOutboundSegment(segment),
+      });
+    } else {
+      storeDraft(segment);
+    }
     return;
   }
 
@@ -577,7 +773,7 @@ canvas.addEventListener("pointerdown", (event) => {
 });
 
 canvas.addEventListener("pointermove", (event) => {
-  if (!isDrawing || !lastPoint || !currentSession?.drawEnabled) {
+  if (!isDrawing || !lastPoint) {
     return;
   }
 
@@ -588,20 +784,20 @@ canvas.addEventListener("pointermove", (event) => {
     from: lastPoint,
     to: nextPoint,
     color: colorPicker.value,
-    size: Number(brushSize.value)
+    size: Number(brushSize.value),
   };
 
   drawSegment(segment);
-  send({
-    type: "draw-segment",
-    sessionId: currentSession.sessionId,
-    segment: {
-      ...segment,
-      normalized: true,
-      from: normalizePoint(segment.from),
-      to: normalizePoint(segment.to)
-    }
-  });
+
+  if (currentSession?.drawEnabled) {
+    send({
+      type: "draw-segment",
+      sessionId: currentSession.sessionId,
+      segment: toOutboundSegment(segment),
+    });
+  } else {
+    storeDraft(segment);
+  }
 
   lastPoint = nextPoint;
 });
@@ -626,33 +822,94 @@ chatForm.addEventListener("submit", (event) => {
     type: "chat",
     sessionId: currentSession.sessionId,
     text,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   chatInput.value = "";
 });
 
+profileForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const nextName = profileNameInput.value.trim();
+
+  if (!nextName) {
+    return;
+  }
+
+  try {
+    const state = await updateProfile(nextName);
+    applySocialState(state);
+    setStatus("Profil guncellendi", "ok");
+    if (socket?.readyState === WebSocket.OPEN) {
+      const accessToken = await getAccessToken();
+      send({
+        type: "register-user",
+        userId,
+        clientId,
+        displayName,
+        accessToken,
+        preferences: {
+          extensionEnabled,
+          appearOnline,
+          allowSurprise,
+        },
+      });
+    }
+  } catch (error) {
+    setStatus(error.message || "Profil guncellenemedi");
+  }
+});
+
 clearCanvasButton.addEventListener("click", () => {
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  clearSurpriseEffect();
+
+  if (currentSession) {
+    send({
+      type: "clear-canvas",
+      sessionId: currentSession.sessionId,
+    });
+  } else {
+    draftSegments = [];
+    updateSessionUI();
+  }
+});
+
+sendDraftButton.addEventListener("click", () => {
+  if (draftSegments.length === 0) {
+    setStatus("Once taslak hazirla");
+    return;
+  }
+
+  const onlineFriends = friends.filter((friend) => getFriendOnline(friend.userId));
+  if (onlineFriends.length === 1) {
+    pendingDraftTarget = { userId: onlineFriends[0].userId };
+    void handleSessionStart(onlineFriends[0].userId, "send");
+    return;
+  }
+
+  addMessage({
+    system: true,
+    text: "Taslak hazir. Soldaki listeden bir arkadasin yanindaki Taslak gonder dugmesine bas.",
+  });
+});
+
+leaveSessionButton.addEventListener("click", async () => {
   if (!currentSession) {
     return;
   }
 
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  clearSurpriseEffect();
-  send({
-    type: "clear-canvas",
-    sessionId: currentSession.sessionId
-  });
-});
-
-leaveSessionButton.addEventListener("click", () => {
-  if (!currentSession) {
-    return;
+  try {
+    if (currentRpcSession?.id) {
+      await endSocialSession(currentRpcSession.id);
+    }
+  } catch (error) {
+    console.error(error);
   }
 
   send({
     type: "leave-session",
-    sessionId: currentSession.sessionId
+    sessionId: currentSession.sessionId,
   });
 });
 
@@ -662,11 +919,11 @@ friendsList.addEventListener("click", (event) => {
     return;
   }
 
-  send({
-    type: "start-session",
-    targetUserId: button.dataset.userId,
-    mode: button.dataset.mode
-  });
+  const mode = button.dataset.mode === "draft" ? "send" : button.dataset.mode;
+  if (button.dataset.mode === "draft") {
+    pendingDraftTarget = { userId: button.dataset.userId };
+  }
+  void handleSessionStart(button.dataset.userId, mode);
 });
 
 requestList.addEventListener("click", (event) => {
@@ -675,23 +932,25 @@ requestList.addEventListener("click", (event) => {
     return;
   }
 
-  const targetUserId = button.dataset.userId;
-  const action = button.dataset.action;
+  const requestId = button.dataset.requestId;
+  if (!requestId) {
+    return;
+  }
 
-  if (action === "accept") {
-    send({
-      type: "accept-friend-request",
-      requesterId: targetUserId
-    });
-  } else if (action === "reject") {
-    send({
-      type: "reject-friend-request",
-      requesterId: targetUserId
-    });
+  if (button.dataset.action === "accept") {
+    void acceptFriendRequest(requestId)
+      .then(applySocialState)
+      .then(() => setStatus("Istek kabul edildi", "ok"))
+      .catch((error) => setStatus(error.message || "Istek kabul edilemedi"));
+  } else if (button.dataset.action === "reject") {
+    void rejectFriendRequest(requestId)
+      .then(applySocialState)
+      .then(() => setStatus("Istek reddedildi", "ok"))
+      .catch((error) => setStatus(error.message || "Istek reddedilemedi"));
   }
 });
 
-pairForm.addEventListener("submit", (event) => {
+pairForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const friendCode = pairCodeInput.value.trim();
 
@@ -699,19 +958,64 @@ pairForm.addEventListener("submit", (event) => {
     return;
   }
 
-  send({
-    type: "send-friend-request",
-    friendCode
-  });
+  try {
+    const state = await sendFriendRequest(friendCode);
+    applySocialState(state);
+    pairCodeInput.value = "";
+    setStatus("Istek gonderildi", "ok");
+  } catch (error) {
+    setStatus(error.message || "Istek gonderilemedi");
+  }
 });
 
 copySyncCodeButton.addEventListener("click", async () => {
   await navigator.clipboard.writeText(userId);
-  setStatus("Sync kodu kopyalandi", "ok");
+  setStatus("Kullanici ID kopyalandi", "ok");
 });
 
 window.addEventListener("resize", resizeCanvas);
 
-resizeCanvas();
-updateSessionUI();
-connect();
+async function handleSessionStart(targetUserId, mode) {
+  try {
+    currentRpcSession = await startSocialSession(targetUserId, mode);
+    send({
+      type: "start-session",
+      targetUserId,
+      mode,
+    });
+  } catch (error) {
+    setStatus(error.message || "Oturum baslatilamadi");
+  }
+}
+
+async function initialize() {
+  resizeCanvas();
+  updateSessionUI();
+  setStatus("Hesap yukleniyor...");
+  setGlobalStatus("Baglaniyor");
+
+  const user = await getCurrentUser();
+  if (!user) {
+    setStatus("Oturum bulunamadi");
+    drawGuard.classList.remove("hidden");
+    drawGuard.textContent = "Once popup uzerinden Google ile giris yap.";
+    return;
+  }
+
+  const state = await bootstrap();
+  applySocialState(state);
+  connect();
+  await applyQuickAction();
+  await track("Loaded Social State", {
+    screen: "board",
+    surface: "bootstrap",
+    result: "success",
+  });
+}
+
+void initialize().catch((error) => {
+  console.error(error);
+  setStatus(error.message || "Sayfa baslatilamadi");
+  drawGuard.classList.remove("hidden");
+  drawGuard.textContent = "Hesap veya sosyal durum yuklenemedi.";
+});
