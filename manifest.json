@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Sync Sketch Party",
+  "version": "0.1.0",
+  "description": "Iki kullanici arasinda canli cizim ve sohbet deneyimi sunan Chrome extension.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_title": "Sync Sketch Party",
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "board.html",
+        "board.css",
+        "board.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

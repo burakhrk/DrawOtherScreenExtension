@@ -1,0 +1,104 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --bg: #f4efe6;
+  --panel: rgba(255, 252, 247, 0.96);
+  --text: #232018;
+  --muted: #6a6358;
+  --accent: #d55d3f;
+  --accent-dark: #ad452e;
+  --line: rgba(35, 32, 24, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 360px;
+  background:
+    radial-gradient(circle at top left, rgba(213, 93, 63, 0.18), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(54, 108, 255, 0.12), transparent 30%),
+    var(--bg);
+  color: var(--text);
+}
+
+.popup-shell {
+  padding: 20px;
+}
+
+.hero {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: 0 10px 30px rgba(56, 37, 22, 0.08);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.08;
+}
+
+.subcopy,
+.hint {
+  color: var(--muted);
+}
+
+.subcopy {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.session-form {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.session-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.session-form input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.session-form button {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, var(--accent), #eb7f47);
+  cursor: pointer;
+}
+
+.session-form button:hover {
+  background: linear-gradient(135deg, var(--accent-dark), #dc6b38);
+}
+
+.hint {
+  margin: 12px 2px 0;
+  font-size: 12px;
+}

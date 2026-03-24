@@ -1,0 +1,13 @@
+{
+  "name": "sync-sketch-party",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gercek zamanli cizim ve sohbet icin deploy edilebilir WebSocket relay sunucusu",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.1"
+  }
+}

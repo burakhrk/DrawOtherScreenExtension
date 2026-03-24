@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sync Sketch Party Board</title>
+    <link rel="stylesheet" href="board.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <aside class="friends-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Sync Sketch Party</p>
+            <h1 id="profileName">Profil yukleniyor...</h1>
+            <p id="profileMeta" class="subtle">Sunucuya baglaniyor...</p>
+          </div>
+          <div id="globalStatus" class="presence">Baglaniyor</div>
+        </div>
+
+        <section class="sync-card">
+          <div>
+            <p class="eyebrow">Sync kodun</p>
+            <strong id="syncCode">-</strong>
+          </div>
+          <button id="copySyncCode" class="ghost">Kopyala</button>
+        </section>
+
+        <form id="pairForm" class="pair-form">
+          <label>
+            <span>Bir kullanici ile sync ol</span>
+            <input id="pairCodeInput" type="text" placeholder="Arkadasinin sync kodu" required />
+          </label>
+          <button type="submit">Sync et</button>
+        </form>
+
+        <section class="friends-list-shell">
+          <div class="section-head">
+            <h2>Arkadas listesi</h2>
+            <span id="friendCount" class="subtle">0 kisi</span>
+          </div>
+          <div id="friendsList" class="friends-list"></div>
+        </section>
+      </aside>
+
+      <section class="stage">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Aktif oturum</p>
+            <h2 id="sessionTitle">Bir arkadas sec</h2>
+            <p id="sessionModeText" class="subtle">Cizim baslatmak icin soldan bir kisi sec.</p>
+          </div>
+
+          <div class="toolbar">
+            <label class="tool tool-stack">
+              <span>Efekt</span>
+              <select id="effectPicker">
+                <option value="draw">Serbest cizim</option>
+                <option value="crack">Kirik ekran</option>
+                <option value="scribble">Karalama</option>
+                <option value="drip">Damlayan boya</option>
+              </select>
+            </label>
+
+            <label class="tool">
+              <span>Renk</span>
+              <input id="colorPicker" type="color" value="#232018" />
+            </label>
+
+            <label class="tool">
+              <span>Kalem</span>
+              <input id="brushSize" type="range" min="1" max="24" value="4" />
+            </label>
+
+            <button id="clearCanvas" class="ghost">Temizle</button>
+            <button id="leaveSession" class="ghost">Oturumu Bitir</button>
+          </div>
+        </header>
+
+        <section class="canvas-shell">
+          <canvas id="drawCanvas"></canvas>
+          <div id="statusPill" class="status-pill">Baglanti kuruluyor...</div>
+          <div id="drawGuard" class="draw-guard hidden"></div>
+        </section>
+      </section>
+
+      <aside class="chat-panel">
+        <div class="chat-head">
+          <div>
+            <p class="eyebrow">Canli sohbet</p>
+            <h2>Mesajlasma</h2>
+          </div>
+          <div id="presence" class="presence">Arkadas bekleniyor</div>
+        </div>
+
+        <div id="messages" class="messages"></div>
+
+        <form id="chatForm" class="chat-form">
+          <input id="chatInput" type="text" maxlength="240" placeholder="Bir seyler yaz..." required />
+          <button type="submit">Gonder</button>
+        </form>
+      </aside>
+    </main>
+
+    <script src="board.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sync Sketch Party</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <section class="hero">
+        <p class="eyebrow">Arkadas listeli canli cizim</p>
+        <h1>Bir kez esles, sonra listeden kisiyi secip ciz.</h1>
+        <p class="subcopy">
+          Her kullanicinin kalici bir profili olur. Bir kez sync olduktan sonra
+          arkadas listesinde online durumu gorulur; istersen tek yonlu cizim
+          gonderir, istersen es zamanli ortak cizim baslatirsin.
+        </p>
+      </section>
+
+      <form id="session-form" class="session-form">
+        <label>
+          <span>Ismin</span>
+          <input id="displayName" name="displayName" type="text" maxlength="24" placeholder="Burak" required />
+        </label>
+
+        <label>
+          <span>Sunucu adresi</span>
+          <input id="serverUrl" name="serverUrl" type="url" placeholder="https://your-domain.com" required />
+        </label>
+
+        <button type="submit">Paneli Ac</button>
+      </form>
+
+      <p class="hint">
+        Sync kodunu sadece bir kez paylasman yeterli. Sonrasi arkadas listesinden ilerler.
+      </p>
+    </main>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>
