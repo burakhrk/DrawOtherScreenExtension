@@ -49,7 +49,8 @@ Bu proje artik internetten erisilebilen bir sunucuya deploy edilmeye uygun.
 
 1. `relay/server.js` tek portta hem HTTP hem WebSocket dinler.
 2. Health check icin `GET /health` endpoint'i vardir.
-3. Extension'a `https://senin-domainin.com` yazman yeterli; istemci bunu otomatik olarak `wss://` baglantisina cevirir.
+3. Basit runtime sayaçlari icin `GET /metrics` endpoint'i vardir.
+4. Extension'a `https://senin-domainin.com` yazman yeterli; istemci bunu otomatik olarak `wss://` baglantisina cevirir.
 
 Ornek deploy secenekleri:
 
@@ -88,3 +89,7 @@ Not:
 - Realtime oturum baslatma istegi de Supabase `sessions` tablosundaki aktif RPC oturumuyla eslestirilir; tek basina websocket mesaji yeterli degildir.
 - Kisa baglanti kopmalarinda oturum aninda dusmez; varsayilan olarak `8` saniyelik geri baglanma penceresi vardir.
 - Relay tarafinda temel payload guard ve rate limit bulunur; bu store/public dagitim icin daha guvenli bir taban verir.
+
+## Testler
+
+- `npm run test:relay-smoke`: mock Supabase ile relay register, presence, session verification, chat/draw forwarding, rate limit ve metrics akisini dener.

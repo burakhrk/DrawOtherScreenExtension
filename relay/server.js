@@ -15,6 +15,18 @@ const activeSessionByUserId = new Map();
 const activeClientByUserId = new Map();
 const pendingSessionClosures = new Map();
 const runtimeUsers = new Map();
+const metrics = {
+  totalConnections: 0,
+  successfulRegistrations: 0,
+  failedRegistrations: 0,
+  startedSessions: 0,
+  endedSessions: 0,
+  forwardedChats: 0,
+  forwardedDrawSegments: 0,
+  clearedCanvases: 0,
+  protocolErrors: 0,
+  rateLimitHits: 0,
+};
 
 function defaultPreferences() {
   return {
@@ -117,6 +129,7 @@ function sendToClient(userId, clientId, payload) {
 }
 
 function sendProtocolError(socket, message, shouldClose = false) {
+  metrics.protocolErrors += 1;
   sendToSocket(socket, {
     type: "error",
     message,
@@ -176,6 +189,7 @@ function endSession(sessionId, reason) {
   }
 
   sessions.delete(sessionId);
+  metrics.endedSessions += 1;
 
   for (const participantId of session.participants) {
     if (activeSessionByUserId.get(participantId) === sessionId) {
@@ -223,6 +237,7 @@ function enforceRateLimit(socket, key, limit, windowMs) {
   }
 
   if (entries.length >= limit) {
+    metrics.rateLimitHits += 1;
     return false;
   }
 
@@ -404,6 +419,23 @@ const httpServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/metrics") {
+    const body = JSON.stringify({
+      ok: true,
+      appId,
+      connectedUsers: runtimeUsers.size,
+      activeSessions: sessions.size,
+      metrics,
+    });
+
+    response.writeHead(200, {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(body),
+    });
+    response.end(body);
+    return;
+  }
+
   const body = JSON.stringify({
     name: "Sync Sketch Party Relay",
     websocket: true,
@@ -424,6 +456,7 @@ const wss = new WebSocketServer({
 });
 
 wss.on("connection", (socket) => {
+  metrics.totalConnections += 1;
   socket.isAlive = true;
   socket.rateLimitState = new Map();
 
@@ -451,6 +484,7 @@ wss.on("connection", (socket) => {
 
       const user = await validateUserIdentity(message, socket);
       if (!user) {
+        metrics.failedRegistrations += 1;
         return;
       }
 
@@ -475,6 +509,7 @@ wss.on("connection", (socket) => {
         userId: user.userId,
         displayName: user.displayName,
       });
+      metrics.successfulRegistrations += 1;
       broadcastPresenceState();
       return;
     }
@@ -550,6 +585,7 @@ wss.on("connection", (socket) => {
       sessions.set(session.sessionId, session);
       activeSessionByUserId.set(userId, session.sessionId);
       activeSessionByUserId.set(targetUserId, session.sessionId);
+      metrics.startedSessions += 1;
 
       sendSessionStarted(userId, session, false);
       sendSessionStarted(targetUserId, session, false);
@@ -612,6 +648,7 @@ wss.on("connection", (socket) => {
         userId,
         segment,
       });
+      metrics.forwardedDrawSegments += 1;
       return;
     }
 
@@ -629,6 +666,7 @@ wss.on("connection", (socket) => {
         type: "clear-canvas",
         userId,
       });
+      metrics.clearedCanvases += 1;
       return;
     }
 
@@ -654,6 +692,7 @@ wss.on("connection", (socket) => {
 
       sendToClient(userId, session.clientIds[userId], payload);
       sendToClient(partnerId, session.clientIds[partnerId], payload);
+      metrics.forwardedChats += 1;
       return;
     }
 
