@@ -9,6 +9,8 @@ Tek seferlik sync ile arkadas listesi olusturan, online durum gosteren ve iki fa
 - `board.html`: Arkadas listesi, sync alani, cizim tuvali ve sohbet ekrani
 - `server.js`: Kullanici profili, arkadas eslestirme, online durum ve oturum yonetimi
 - `server-data.json`: Arkadaslik bilgilerinin basit kalici kaydi
+- `extension-marketing-kit/`: Ileride screenshot ve promo video uretmek icin reusable scriptler
+- `docs/ANALYTICS_ROADMAP.md`: Analytics eventlerini ne zaman ve nasil genisletecegimize dair notlar
 
 ## Yerel Kurulum
 

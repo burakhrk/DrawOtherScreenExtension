@@ -1,0 +1,5 @@
+{
+  "generate:store-shots": "node extension-marketing-kit/scripts/generate-extension-screenshots.mjs",
+  "generate:store-clips": "node extension-marketing-kit/scripts/generate-extension-clips.mjs",
+  "generate:store-montage": "python extension-marketing-kit/scripts/generate-extension-montage.py"
+}
