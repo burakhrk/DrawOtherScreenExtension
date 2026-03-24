@@ -14,42 +14,62 @@ function getDisplayName(user, ownProfile = null) {
 
 export async function signInWithGoogle() {
   const redirectTo = chrome.identity.getRedirectURL();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo,
-      skipBrowserRedirect: true,
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
-      },
-    },
-  });
+  let data;
+  let error;
 
-  if (error) {
-    throw error;
+  try {
+    const response = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+    data = response.data;
+    error = response.error;
+  } catch (oauthError) {
+    throw new Error(
+      `Google OAuth baslatilamadi. Supabase allowlist icinde su callback olmali: ${redirectTo}. ${oauthError?.message || ""}`.trim(),
+    );
   }
 
-  const callbackUrl = await chrome.identity.launchWebAuthFlow({
-    url: data.url,
-    interactive: true,
-  });
+  if (error) {
+    throw new Error(
+      `${error.message || "Google OAuth baslatilamadi."} Callback: ${redirectTo}`,
+    );
+  }
+
+  let callbackUrl;
+  try {
+    callbackUrl = await chrome.identity.launchWebAuthFlow({
+      url: data.url,
+      interactive: true,
+    });
+  } catch (launchError) {
+    throw new Error(
+      `Google login popup'u tamamlanamadi. Yeni extension id icin redirect whitelist'i guncellemen gerekebilir. Callback: ${redirectTo}. ${launchError?.message || ""}`.trim(),
+    );
+  }
 
   const callback = new URL(callbackUrl);
   const authCode = callback.searchParams.get("code");
   const authError = callback.searchParams.get("error_description") || callback.searchParams.get("error");
 
   if (authError) {
-    throw new Error(authError);
+    throw new Error(`${authError}. Callback: ${redirectTo}`);
   }
 
   if (!authCode) {
-    throw new Error("Google girisi tamamlanamadi.");
+    throw new Error(`Google girisi tamamlanamadi. Callback: ${redirectTo}`);
   }
 
   const exchange = await supabase.auth.exchangeCodeForSession(authCode);
   if (exchange.error) {
-    throw exchange.error;
+    throw new Error(`${exchange.error.message || "Session exchange basarisiz."} Callback: ${redirectTo}`);
   }
 
   await track("Signed In", {
