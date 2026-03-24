@@ -591,11 +591,6 @@ function applySocialState(state) {
   setGlobalStatus(appearOnline && extensionEnabled ? "Online" : "Pasif", appearOnline && extensionEnabled);
 }
 
-async function refreshSocialState() {
-  const state = await getSocialState();
-  applySocialState(state);
-}
-
 async function applyQuickAction() {
   const stored = await chrome.storage.local.get(QUICK_ACTION_KEY);
   const action = stored[QUICK_ACTION_KEY];
@@ -1066,6 +1061,7 @@ async function handleSessionStart(targetUserId, mode) {
     currentRpcSession = await startSocialSession(targetUserId, mode);
     send({
       type: "start-session",
+      rpcSessionId: currentRpcSession.id,
       targetUserId,
       mode,
     });

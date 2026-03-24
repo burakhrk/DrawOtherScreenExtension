@@ -1,12 +1,11 @@
 const http = require("http");
-const fs = require("fs");
-const path = require("path");
 const { WebSocketServer } = require("ws");
 
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "0.0.0.0";
-const dataFile = process.env.DATA_FILE || path.join(__dirname, "server-data.json");
 const reconnectGraceMs = Number(process.env.RECONNECT_GRACE_MS || 8000);
+const maxPayloadBytes = Number(process.env.MAX_PAYLOAD_BYTES || 32 * 1024);
+const appId = process.env.APP_ID || "drawing-office";
 const supabaseUrl = process.env.SUPABASE_URL || "https://euzeprutflhfavzxuwfs.supabase.co";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1emVwcnV0ZmxoZmF2enh1d2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODIzMTgsImV4cCI6MjA4OTI1ODMxOH0.C80nlS1Y_p8faRp2vHkRpGfVoYRubHH9Ja7yfxyPmbw";
 
@@ -15,70 +14,43 @@ const socketsByUserId = new Map();
 const activeSessionByUserId = new Map();
 const activeClientByUserId = new Map();
 const pendingSessionClosures = new Map();
+const runtimeUsers = new Map();
 
-function ensureDataFile() {
-  const directory = path.dirname(dataFile);
-
-  if (!fs.existsSync(directory)) {
-    fs.mkdirSync(directory, { recursive: true });
-  }
-
-  if (!fs.existsSync(dataFile)) {
-    fs.writeFileSync(dataFile, JSON.stringify({ users: {} }, null, 2));
-  }
+function defaultPreferences() {
+  return {
+    extensionEnabled: true,
+    appearOnline: true,
+    allowSurprise: true,
+  };
 }
 
-function readStore() {
-  ensureDataFile();
-
-  try {
-    return JSON.parse(fs.readFileSync(dataFile, "utf8"));
-  } catch (error) {
-    return { users: {} };
-  }
+function normalizeDisplayName(value) {
+  const nextValue = String(value || "").trim().slice(0, 32);
+  return nextValue || "Misafir";
 }
 
-function writeStore(store) {
-  ensureDataFile();
-  fs.writeFileSync(dataFile, JSON.stringify(store, null, 2));
+function normalizePreferences(preferences) {
+  return {
+    extensionEnabled: preferences?.extensionEnabled !== false,
+    appearOnline: preferences?.appearOnline !== false,
+    allowSurprise: preferences?.allowSurprise !== false,
+  };
 }
 
-const store = readStore();
-
-function ensureUserRecord(userId, displayName) {
-  if (!store.users[userId]) {
-    store.users[userId] = {
+function ensureRuntimeUser(userId, displayName) {
+  if (!runtimeUsers.has(userId)) {
+    runtimeUsers.set(userId, {
       userId,
-      displayName: displayName || "Misafir",
-      friends: [],
-      incomingRequests: [],
-      preferences: {
-        extensionEnabled: true,
-        appearOnline: true,
-        allowSurprise: true
-      }
-    };
-  } else if (displayName && displayName.trim()) {
-    store.users[userId].displayName = displayName;
+      displayName: normalizeDisplayName(displayName),
+      preferences: defaultPreferences(),
+      lastAccessToken: null,
+      lastSeenAt: Date.now(),
+    });
+  } else if (displayName) {
+    runtimeUsers.get(userId).displayName = normalizeDisplayName(displayName);
   }
 
-  if (!Array.isArray(store.users[userId].friends)) {
-    store.users[userId].friends = [];
-  }
-
-  if (!Array.isArray(store.users[userId].incomingRequests)) {
-    store.users[userId].incomingRequests = [];
-  }
-
-  if (!store.users[userId].preferences) {
-    store.users[userId].preferences = {
-      extensionEnabled: true,
-      appearOnline: true,
-      allowSurprise: true
-    };
-  }
-
-  return store.users[userId];
+  return runtimeUsers.get(userId);
 }
 
 function getSocketMap(userId) {
@@ -110,11 +82,11 @@ function isOnline(userId) {
 }
 
 function isVisibleOnline(userId) {
-  const user = store.users[userId];
+  const user = runtimeUsers.get(userId);
   return Boolean(
     user &&
-    user.preferences?.extensionEnabled !== false &&
-    user.preferences?.appearOnline !== false &&
+    user.preferences.extensionEnabled !== false &&
+    user.preferences.appearOnline !== false &&
     isOnline(userId)
   );
 }
@@ -144,104 +116,27 @@ function sendToClient(userId, clientId, payload) {
   return false;
 }
 
+function sendProtocolError(socket, message, shouldClose = false) {
+  sendToSocket(socket, {
+    type: "error",
+    message,
+  });
+
+  if (shouldClose) {
+    socket.close();
+  }
+}
+
 function broadcastPresenceState() {
-  const onlineUserIds = Object.values(store.users)
+  const onlineUserIds = Array.from(runtimeUsers.values())
     .filter((user) => isVisibleOnline(user.userId))
     .map((user) => user.userId);
 
   for (const socket of wss.clients) {
     sendToSocket(socket, {
       type: "presence-state",
-      onlineUserIds
+      onlineUserIds,
     });
-  }
-}
-
-function getFriends(userId) {
-  const user = store.users[userId];
-  if (!user) {
-    return [];
-  }
-
-  return user.friends
-    .map((friendId) => store.users[friendId])
-    .filter(Boolean)
-    .map((friend) => ({
-      userId: friend.userId,
-      displayName: friend.displayName,
-      online: isVisibleOnline(friend.userId)
-    }))
-    .sort((left, right) => {
-      if (left.online !== right.online) {
-        return left.online ? -1 : 1;
-      }
-
-      return left.displayName.localeCompare(right.displayName, "tr");
-    });
-}
-
-function getIncomingRequests(userId) {
-  const user = store.users[userId];
-  if (!user || !Array.isArray(user.incomingRequests)) {
-    return [];
-  }
-
-  return user.incomingRequests
-    .map((requesterId) => store.users[requesterId])
-    .filter(Boolean)
-    .map((requester) => ({
-      userId: requester.userId,
-      displayName: requester.displayName
-    }));
-}
-
-function getOutgoingRequests(userId) {
-  return Object.values(store.users)
-    .filter((candidate) => Array.isArray(candidate.incomingRequests) && candidate.incomingRequests.includes(userId))
-    .map((candidate) => ({
-      userId: candidate.userId,
-      displayName: candidate.displayName
-    }));
-}
-
-function pushSocialState(userId, messageType = "social-state") {
-  if (!store.users[userId]) {
-    return;
-  }
-
-  sendToUser(userId, {
-    type: messageType,
-    userId,
-    displayName: store.users[userId].displayName,
-    syncCode: userId,
-    friends: getFriends(userId),
-    incomingRequests: getIncomingRequests(userId),
-    outgoingRequests: getOutgoingRequests(userId)
-  });
-}
-
-function notifySocialChange(userId) {
-  const related = new Set([userId]);
-  const user = store.users[userId];
-
-  if (user) {
-    for (const friendId of user.friends) {
-      related.add(friendId);
-    }
-
-    for (const requesterId of user.incomingRequests || []) {
-      related.add(requesterId);
-    }
-  }
-
-  for (const candidate of Object.values(store.users)) {
-    if (Array.isArray(candidate.incomingRequests) && candidate.incomingRequests.includes(userId)) {
-      related.add(candidate.userId);
-    }
-  }
-
-  for (const targetUserId of related) {
-    pushSocialState(targetUserId);
   }
 }
 
@@ -255,7 +150,7 @@ function clearPendingSessionClose(userId) {
 
 function sendSessionStarted(userId, session, restored = false) {
   const partnerId = session.participants.find((participantId) => participantId !== userId);
-  const partner = ensureUserRecord(partnerId);
+  const partner = ensureRuntimeUser(partnerId);
   const payload = {
     type: "session-started",
     sessionId: session.sessionId,
@@ -265,8 +160,8 @@ function sendSessionStarted(userId, session, restored = false) {
     partner: {
       userId: partner.userId,
       displayName: partner.displayName,
-      online: isOnline(partner.userId)
-    }
+      online: isOnline(partner.userId),
+    },
   };
 
   if (!sendToClient(userId, session.clientIds[userId], payload)) {
@@ -291,7 +186,7 @@ function endSession(sessionId, reason) {
     const payload = {
       type: "session-ended",
       sessionId,
-      reason
+      reason,
     };
 
     if (!sendToClient(participantId, session.clientIds[participantId], payload)) {
@@ -307,13 +202,117 @@ function closeUserSession(userId, reason) {
   }
 }
 
+function createRateLimitKey(socket, key) {
+  if (!socket.rateLimitState) {
+    socket.rateLimitState = new Map();
+  }
+
+  if (!socket.rateLimitState.has(key)) {
+    socket.rateLimitState.set(key, []);
+  }
+
+  return socket.rateLimitState.get(key);
+}
+
+function enforceRateLimit(socket, key, limit, windowMs) {
+  const now = Date.now();
+  const entries = createRateLimitKey(socket, key);
+
+  while (entries.length > 0 && now - entries[0] > windowMs) {
+    entries.shift();
+  }
+
+  if (entries.length >= limit) {
+    return false;
+  }
+
+  entries.push(now);
+  return true;
+}
+
+function isValidHexColor(value) {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+function isValidPoint(point) {
+  return Boolean(
+    point &&
+    Number.isFinite(point.x) &&
+    Number.isFinite(point.y) &&
+    point.x >= 0 &&
+    point.x <= 1000 &&
+    point.y >= 0 &&
+    point.y <= 1000
+  );
+}
+
+function sanitizeSegment(segment) {
+  if (!segment || typeof segment !== "object") {
+    return null;
+  }
+
+  const effect = typeof segment.effect === "string" ? segment.effect : "draw";
+  const allowedEffects = new Set(["draw", "crack", "scribble", "drip", "zap", "heartburst", "bullet", "stickman"]);
+
+  if (!allowedEffects.has(effect)) {
+    return null;
+  }
+
+  if (!segment.normalized || !isValidPoint(segment.from) || !isValidPoint(segment.to)) {
+    return null;
+  }
+
+  const size = Number(segment.size);
+  if (!Number.isFinite(size) || size < 1 || size > 32) {
+    return null;
+  }
+
+  const color = isValidHexColor(segment.color) ? segment.color : "#232018";
+  const strokeId = typeof segment.strokeId === "string" ? segment.strokeId.slice(0, 80) : crypto.randomUUID();
+  const seed = Number.isFinite(segment.seed) ? segment.seed : 0;
+
+  return {
+    strokeId,
+    effect,
+    normalized: true,
+    from: {
+      x: Number(segment.from.x),
+      y: Number(segment.from.y),
+    },
+    to: {
+      x: Number(segment.to.x),
+      y: Number(segment.to.y),
+    },
+    color,
+    size,
+    seed,
+  };
+}
+
+function sanitizeChatText(value) {
+  const nextValue = typeof value === "string" ? value.trim() : "";
+  if (!nextValue) {
+    return null;
+  }
+
+  return nextValue.slice(0, 240);
+}
+
+function safeJsonParse(raw) {
+  try {
+    return JSON.parse(raw.toString());
+  } catch (error) {
+    return null;
+  }
+}
+
 async function fetchVerifiedUser(accessToken) {
   const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
     method: "GET",
     headers: {
       apikey: supabaseAnonKey,
-      Authorization: `Bearer ${accessToken}`
-    }
+      Authorization: `Bearer ${accessToken}`,
+    },
   });
 
   if (!response.ok) {
@@ -323,28 +322,67 @@ async function fetchVerifiedUser(accessToken) {
   return response.json();
 }
 
+async function fetchVerifiedSession({ accessToken, sessionId, initiatorId, recipientId, mode }) {
+  if (!accessToken || !sessionId) {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams({
+    select: "id,app_id,initiator_id,recipient_id,mode,status,created_at,ended_at",
+    id: `eq.${sessionId}`,
+    app_id: `eq.${appId}`,
+    status: "eq.active",
+    limit: "1",
+  });
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/sessions?${searchParams.toString()}`, {
+    method: "GET",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const rows = await response.json();
+  const session = rows[0];
+
+  if (!session) {
+    return null;
+  }
+
+  if (
+    session.initiator_id !== initiatorId ||
+    session.recipient_id !== recipientId ||
+    session.mode !== mode ||
+    session.status !== "active"
+  ) {
+    return null;
+  }
+
+  return session;
+}
+
 async function validateUserIdentity(message, socket) {
   if (!message.userId || !message.clientId || !message.accessToken) {
-    sendToSocket(socket, {
-      type: "error",
-      message: "Kayit icin userId, clientId ve access token gerekli."
-    });
-    socket.close();
+    sendProtocolError(socket, "Kayit icin userId, clientId ve access token gerekli.", true);
     return null;
   }
 
   const verifiedUser = await fetchVerifiedUser(message.accessToken);
 
   if (!verifiedUser || verifiedUser.id !== message.userId) {
-    sendToSocket(socket, {
-      type: "error",
-      message: "JWT dogrulamasi basarisiz."
-    });
-    socket.close();
+    sendProtocolError(socket, "JWT dogrulamasi basarisiz.", true);
     return null;
   }
 
-  const user = ensureUserRecord(message.userId, message.displayName || "Misafir");
+  const user = ensureRuntimeUser(message.userId, message.displayName || "Misafir");
+  user.lastAccessToken = message.accessToken;
+  user.lastSeenAt = Date.now();
+  user.preferences = normalizePreferences(message.preferences);
   return user;
 }
 
@@ -352,13 +390,15 @@ const httpServer = http.createServer((request, response) => {
   if (request.url === "/health") {
     const body = JSON.stringify({
       ok: true,
-      users: Object.keys(store.users).length,
-      activeSessions: sessions.size
+      connectedUsers: runtimeUsers.size,
+      activeSessions: sessions.size,
+      statelessRelay: true,
+      appId,
     });
 
     response.writeHead(200, {
       "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(body)
+      "Content-Length": Buffer.byteLength(body),
     });
     response.end(body);
     return;
@@ -367,53 +407,60 @@ const httpServer = http.createServer((request, response) => {
   const body = JSON.stringify({
     name: "Sync Sketch Party Relay",
     websocket: true,
-    health: "/health"
+    health: "/health",
+    appId,
   });
 
   response.writeHead(200, {
     "Content-Type": "application/json",
-    "Content-Length": Buffer.byteLength(body)
+    "Content-Length": Buffer.byteLength(body),
   });
   response.end(body);
 });
 
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({
+  server: httpServer,
+  maxPayload: maxPayloadBytes,
+});
 
 wss.on("connection", (socket) => {
   socket.isAlive = true;
+  socket.rateLimitState = new Map();
+
   socket.on("pong", () => {
     socket.isAlive = true;
   });
 
-  socket.on("message", async (raw) => {
-    let message;
+  socket.on("message", async (raw, isBinary) => {
+    if (isBinary) {
+      sendProtocolError(socket, "Binary payload desteklenmiyor.");
+      return;
+    }
 
-    try {
-      message = JSON.parse(raw.toString());
-    } catch (error) {
+    const message = safeJsonParse(raw);
+    if (!message || typeof message.type !== "string") {
+      sendProtocolError(socket, "Gecersiz mesaj formati.");
       return;
     }
 
     if (message.type === "register-user") {
+      if (!enforceRateLimit(socket, "register-user", 6, 60_000)) {
+        sendProtocolError(socket, "Kayit istegi cok sik gonderildi.");
+        return;
+      }
+
       const user = await validateUserIdentity(message, socket);
       if (!user) {
         return;
       }
 
       socket.userId = user.userId;
-      socket.clientId = message.clientId;
-      user.preferences = {
-        extensionEnabled: message.preferences?.extensionEnabled !== false,
-        appearOnline: message.preferences?.appearOnline !== false,
-        allowSurprise: message.preferences?.allowSurprise !== false
-      };
-      writeStore(store);
+      socket.clientId = String(message.clientId).slice(0, 100);
 
       const sockets = getSocketMap(user.userId);
       sockets.set(socket.clientId, socket);
       activeClientByUserId.set(user.userId, socket.clientId);
       clearPendingSessionClose(user.userId);
-      pushSocialState(user.userId, "registered");
 
       const activeSessionId = activeSessionByUserId.get(user.userId);
       const activeSession = sessions.get(activeSessionId);
@@ -423,187 +470,86 @@ wss.on("connection", (socket) => {
         sendSessionStarted(user.userId, activeSession, true);
       }
 
+      sendToSocket(socket, {
+        type: "registered",
+        userId: user.userId,
+        displayName: user.displayName,
+      });
       broadcastPresenceState();
-      notifySocialChange(user.userId);
       return;
     }
 
     if (!socket.userId || !socket.clientId) {
+      sendProtocolError(socket, "Baglanti once kayit olmali.");
       return;
     }
 
     const userId = socket.userId;
-    const user = ensureUserRecord(userId);
+    const user = ensureRuntimeUser(userId);
+    user.lastSeenAt = Date.now();
     activeClientByUserId.set(userId, socket.clientId);
 
-    if (message.type === "send-friend-request") {
-      const friendId = message.friendCode;
-
-      if (!store.users[friendId]) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Boyle bir sync kodu bulunamadi."
-        });
-        return;
-      }
-
-      if (friendId === userId) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Kendine istek gonderemezsin."
-        });
-        return;
-      }
-
-      const friend = ensureUserRecord(friendId);
-
-      if (areFriends(userId, friendId)) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Bu kullanici zaten arkadas listende."
-        });
-        return;
-      }
-
-      if (!friend.incomingRequests.includes(userId)) {
-        friend.incomingRequests.push(userId);
-        writeStore(store);
-      }
-
-      pushSocialState(userId);
-      pushSocialState(friendId);
-      sendToSocket(socket, {
-        type: "friend-request-sent",
-        friend: {
-          userId: friend.userId,
-          displayName: friend.displayName
-        }
-      });
-      return;
-    }
-
-    if (message.type === "accept-friend-request" || message.type === "reject-friend-request") {
-      const requesterId = message.requesterId;
-      const requester = ensureUserRecord(requesterId);
-
-      if (!user.incomingRequests.includes(requesterId)) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Böyle bir istek bulunamadi."
-        });
-        return;
-      }
-
-      user.incomingRequests = user.incomingRequests.filter((id) => id !== requesterId);
-
-      if (message.type === "accept-friend-request") {
-        if (!user.friends.includes(requesterId)) {
-          user.friends.push(requesterId);
-        }
-
-        if (!requester.friends.includes(userId)) {
-          requester.friends.push(userId);
-        }
-
-        sendToUser(requesterId, {
-          type: "friend-request-accepted",
-          friend: {
-            userId,
-            displayName: user.displayName
-          }
-        });
-      } else {
-        sendToUser(requesterId, {
-          type: "friend-request-rejected",
-          friend: {
-            userId,
-            displayName: user.displayName
-          }
-        });
-      }
-
-      writeStore(store);
-      pushSocialState(userId);
-      pushSocialState(requesterId);
-      return;
-    }
-
-    if (message.type === "update-profile") {
-      const nextName = String(message.displayName || "").trim().slice(0, 32);
-
-      if (!nextName) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Profil adi bos olamaz."
-        });
-        return;
-      }
-
-      user.displayName = nextName;
-      writeStore(store);
-
-      sendToSocket(socket, {
-        type: "profile-updated",
-        displayName: nextName
-      });
-      notifySocialChange(userId);
-      return;
-    }
-
     if (message.type === "start-session") {
-      const { targetUserId, mode } = message;
-
-      if (!targetUserId || !["send", "live"].includes(mode)) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Oturum baslatma bilgisi gecersiz."
-        });
+      if (!enforceRateLimit(socket, "start-session", 12, 60_000)) {
+        sendProtocolError(socket, "Cok fazla oturum denemesi yapildi.");
         return;
       }
 
-      if (user.preferences?.extensionEnabled === false) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Pasif moddayken oturum baslatamazsin."
-        });
+      const targetUserId = typeof message.targetUserId === "string" ? message.targetUserId : "";
+      const mode = message.mode === "live" ? "live" : message.mode === "send" ? "send" : "";
+      const rpcSessionId = typeof message.rpcSessionId === "string" ? message.rpcSessionId : "";
+
+      if (!targetUserId || !mode || !rpcSessionId) {
+        sendProtocolError(socket, "Oturum baslatma bilgisi gecersiz.");
+        return;
+      }
+
+      if (user.preferences.extensionEnabled === false) {
+        sendProtocolError(socket, "Pasif moddayken oturum baslatamazsin.");
         return;
       }
 
       if (!isVisibleOnline(targetUserId)) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Secilen kullanici su an musait degil."
-        });
+        sendProtocolError(socket, "Secilen kullanici su an musait degil.");
+        return;
+      }
+
+      const targetClientId = getPreferredClientId(targetUserId);
+      if (!targetClientId) {
+        sendProtocolError(socket, "Secilen kullanicinin aktif penceresi bulunamadi.");
+        return;
+      }
+
+      const verifiedSession = await fetchVerifiedSession({
+        accessToken: user.lastAccessToken,
+        sessionId: rpcSessionId,
+        initiatorId: userId,
+        recipientId: targetUserId,
+        mode,
+      });
+
+      if (!verifiedSession) {
+        sendProtocolError(socket, "Realtime oturum Supabase tarafinda dogrulanamadi.");
         return;
       }
 
       closeUserSession(userId, "Yeni bir oturum baslatildi.");
       closeUserSession(targetUserId, "Yeni bir oturum baslatildi.");
 
-      const targetClientId = getPreferredClientId(targetUserId);
-      if (!targetClientId) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Secilen kullanicinin aktif penceresi bulunamadi."
-        });
-        return;
-      }
-
-      const sessionId = crypto.randomUUID();
       const session = {
-        sessionId,
+        sessionId: verifiedSession.id,
         mode,
         initiatorId: userId,
         participants: [userId, targetUserId],
         clientIds: {
           [userId]: socket.clientId,
-          [targetUserId]: targetClientId
-        }
+          [targetUserId]: targetClientId,
+        },
       };
 
-      sessions.set(sessionId, session);
-      activeSessionByUserId.set(userId, sessionId);
-      activeSessionByUserId.set(targetUserId, sessionId);
+      sessions.set(session.sessionId, session);
+      activeSessionByUserId.set(userId, session.sessionId);
+      activeSessionByUserId.set(targetUserId, session.sessionId);
 
       sendSessionStarted(userId, session, false);
       sendSessionStarted(targetUserId, session, false);
@@ -612,6 +558,11 @@ wss.on("connection", (socket) => {
     }
 
     if (message.type === "leave-session") {
+      if (!enforceRateLimit(socket, "leave-session", 20, 60_000)) {
+        sendProtocolError(socket, "Oturum kapatma istegi cok sık gonderildi.");
+        return;
+      }
+
       const sessionId = activeSessionByUserId.get(userId);
       const session = sessions.get(sessionId);
 
@@ -621,10 +572,7 @@ wss.on("connection", (socket) => {
         !session.participants.includes(userId) ||
         session.clientIds[userId] !== socket.clientId
       ) {
-        sendToSocket(socket, {
-          type: "error",
-          message: "Bu oturumu kapatma yetkin yok."
-        });
+        sendProtocolError(socket, "Bu oturumu kapatma yetkin yok.");
         return;
       }
 
@@ -636,6 +584,7 @@ wss.on("connection", (socket) => {
     const session = sessions.get(sessionId);
 
     if (!session || message.sessionId !== sessionId || session.clientIds[userId] !== socket.clientId) {
+      sendProtocolError(socket, "Aktif oturum bulunamadi.");
       return;
     }
 
@@ -643,42 +592,72 @@ wss.on("connection", (socket) => {
     const canDraw = session.mode === "live" || session.initiatorId === userId;
 
     if (message.type === "draw-segment") {
+      if (!enforceRateLimit(socket, "draw-segment", 240, 10_000)) {
+        sendProtocolError(socket, "Cizim verisi cok hizli gonderiliyor.");
+        return;
+      }
+
       if (!canDraw) {
+        return;
+      }
+
+      const segment = sanitizeSegment(message.segment);
+      if (!segment) {
+        sendProtocolError(socket, "Cizim verisi gecersiz.");
         return;
       }
 
       sendToClient(partnerId, session.clientIds[partnerId], {
         type: "draw-segment",
         userId,
-        segment: message.segment
+        segment,
       });
       return;
     }
 
     if (message.type === "clear-canvas") {
+      if (!enforceRateLimit(socket, "clear-canvas", 20, 60_000)) {
+        sendProtocolError(socket, "Temizleme istegi cok hizli gonderiliyor.");
+        return;
+      }
+
       if (!canDraw) {
         return;
       }
 
       sendToClient(partnerId, session.clientIds[partnerId], {
         type: "clear-canvas",
-        userId
+        userId,
       });
       return;
     }
 
     if (message.type === "chat") {
+      if (!enforceRateLimit(socket, "chat", 40, 20_000)) {
+        sendProtocolError(socket, "Mesajlar cok hizli gonderiliyor.");
+        return;
+      }
+
+      const text = sanitizeChatText(message.text);
+      if (!text) {
+        sendProtocolError(socket, "Mesaj bos olamaz.");
+        return;
+      }
+
       const payload = {
         type: "chat",
         userId,
         displayName: user.displayName,
-        text: message.text,
-        timestamp: message.timestamp || Date.now()
+        text,
+        timestamp: message.timestamp || Date.now(),
       };
 
       sendToClient(userId, session.clientIds[userId], payload);
       sendToClient(partnerId, session.clientIds[partnerId], payload);
+      return;
     }
+
+    sendProtocolError(socket, "Desteklenmeyen realtime mesaji.");
   });
 
   socket.on("close", () => {
@@ -708,13 +687,14 @@ wss.on("connection", (socket) => {
 
         if (!isOnline(userId)) {
           closeUserSession(userId, "Karsi taraf baglantiyi kapatti.");
-          notifySocialChange(userId);
+          runtimeUsers.delete(userId);
+          activeClientByUserId.delete(userId);
+          broadcastPresenceState();
         }
       }, reconnectGraceMs));
+    } else {
+      broadcastPresenceState();
     }
-
-    notifySocialChange(userId);
-    broadcastPresenceState();
   });
 });
 
@@ -728,7 +708,7 @@ const heartbeatInterval = setInterval(() => {
     socket.isAlive = false;
     socket.ping();
   }
-}, 30000);
+}, 30_000);
 
 wss.on("close", () => {
   clearInterval(heartbeatInterval);

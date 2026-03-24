@@ -1,5 +1,4 @@
 node_modules/
-relay/server-data.json
 data/
 .DS_Store
 Thumbs.db

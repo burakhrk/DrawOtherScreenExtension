@@ -12,7 +12,7 @@ Bu repo artik starter kit'teki ayri katman mantigina daha yakin bir yapi kullani
 - `src/popup/`: popup giris ve hizli baslatma yuzeyi
 - `src/lib/`: Supabase auth, social client, analytics ve ortak yardimci katmanlar
 - `src/types/`: ileride tip dosyalari icin ayrilmis alan
-- `relay/`: deploy edilen WebSocket relay sunucusu ve lokal veri dosyasi
+- `relay/`: deploy edilen stateless WebSocket relay sunucusu
 - `public/icons/`: extension ikon kaynaklari icin ayrilmis alan
 - `scripts/`: repo-ozel yardimci scriptler icin ayrilmis alan
 - `store-assets/`: store screenshot, promo ve video ciktilari icin ayrilmis alan
@@ -26,7 +26,6 @@ Bu repo artik starter kit'teki ayri katman mantigina daha yakin bir yapi kullani
 - `src/dashboard/dashboard.html`: arkadas listesi, draft/cizim ve sohbet ekrani
 - `src/lib/`: auth, Supabase client ve social wrapper
 - `relay/server.js`: JWT dogrulamali realtime relay
-- `relay/server-data.json`: lokal fallback veri dosyasi
 - `docs/ANALYTICS_ROADMAP.md`: analytics eventlerini ne zaman ve nasil genisletecegimize dair notlar
 
 ## Yerel Kurulum
@@ -61,7 +60,7 @@ Ornek deploy secenekleri:
 Docker ile calistirmak icin:
 
 1. `docker build -t sync-sketch-party .`
-2. `docker run -p 3000:3000 -v %cd%/data:/app/data -e DATA_FILE=/app/data/server-data.json sync-sketch-party`
+2. `docker run -p 3000:3000 -e APP_ID=drawing-office -e SUPABASE_URL=https://... -e SUPABASE_ANON_KEY=... sync-sketch-party`
 
 Sunucu deploy olduktan sonra extension icinde sunucu adresi olarak ornegin `https://draw.yourapp.com` girmen yeterli olur.
 
@@ -80,12 +79,12 @@ Not:
 
 - Render resmi dokumanina gore WebSocket baglantilarini public internetten kabul ediyor. [WebSockets on Render](https://render.com/docs/websocket)
 - Render web service'leri public URL ve TLS ile gelir; uygulama `PORT` env'ine baglanmalidir. Bizim sunucu bunu zaten yapiyor. [Web Services](https://render.com/docs/web-services)
-- Su an `relay/server-data.json` dosyasi varsayilan olarak lokal diske yaziliyor. Render dokumanina gore kalici disk baglanmazsa dosya sistemi gecicidir; yani deploy/restart sonrasinda arkadaslik verisi silinebilir. Hemen test etmek icin sorun degil. [Persistent Disks](https://render.com/docs/disks)
 
 ## Notlar
 
 - Su an cizimler sadece aktif oturum icinde canli aktarilir; gecmis cizimi yeni oturuma tasima yok.
-- Arkadaslik bilgisi varsayilan olarak `relay/server-data.json` icinde tutulur. Uretim ortaminda kalici disk yoksa bu veri sifirlanabilir.
+- Relay stateless calisir; kalici arkadaslik ve tercih verisinin kaynagi Supabase'tir.
 - Kimlik artik cihaz anahtarina degil Supabase hesabina dayanir; relay kayit sirasinda access token dogrulamasi yapar.
+- Realtime oturum baslatma istegi de Supabase `sessions` tablosundaki aktif RPC oturumuyla eslestirilir; tek basina websocket mesaji yeterli degildir.
 - Kisa baglanti kopmalarinda oturum aninda dusmez; varsayilan olarak `8` saniyelik geri baglanma penceresi vardir.
-- Gercek sosyal urun icin sosyal graph ve tercihlerin kalici kaynagi Supabase olmalidir; relay sadece realtime tasiyici gibi dusunulmelidir.
+- Relay tarafinda temel payload guard ve rate limit bulunur; bu store/public dagitim icin daha guvenli bir taban verir.
