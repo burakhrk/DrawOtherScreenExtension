@@ -576,7 +576,7 @@ function renderFriends() {
       </div>
       <div class="friend-actions">
         <button class="mode-button" data-user-id="${friend.userId}" data-mode="send" ${disabled} ${allowSurprise ? "" : surpriseDisabled}>Send drawing</button>
-        <button class="mode-button ${liveLocked ? "pro-lock" : ""}" data-user-id="${friend.userId}" data-mode="live" ${disabled} ${liveLocked ? "data-pro-lock=\"true\"" : ""}>${liveLocked ? "Live mode â€¢ Pro" : "Live mode"}</button>
+        <button class="mode-button ${liveLocked ? "pro-lock" : ""}" data-user-id="${friend.userId}" data-mode="live" ${disabled} ${liveLocked ? "data-pro-lock=\"true\"" : ""}>${liveLocked ? "Live mode • Pro" : "Live mode"}</button>
         <button class="mode-button" data-user-id="${friend.userId}" data-mode="draft" ${draftDisabled}>Send draft</button>
       </div>
     `;
@@ -1191,5 +1191,6 @@ void initialize().catch((error) => {
   drawGuard.classList.remove("hidden");
   drawGuard.textContent = "Account or social state could not be loaded.";
 });
+
 
 
