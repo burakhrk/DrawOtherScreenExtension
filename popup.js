@@ -3,12 +3,13 @@ const displayNameInput = document.getElementById("displayName");
 const serverUrlInput = document.getElementById("serverUrl");
 
 const STORAGE_KEY = "sync-sketch-profile";
+const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
 
 function normalizeServerUrl(value) {
   const trimmed = value.trim();
 
   if (!trimmed) {
-    return "ws://localhost:3000";
+    return DEFAULT_SERVER_URL;
   }
 
   const url = new URL(trimmed);
@@ -20,12 +21,12 @@ async function hydrateForm() {
   const profile = stored[STORAGE_KEY];
 
   if (!profile) {
-    serverUrlInput.value = "ws://localhost:3000";
+    serverUrlInput.value = DEFAULT_SERVER_URL;
     return;
   }
 
   displayNameInput.value = profile.displayName ?? "";
-  serverUrlInput.value = profile.serverUrl ?? "ws://localhost:3000";
+  serverUrlInput.value = profile.serverUrl ?? DEFAULT_SERVER_URL;
 }
 
 form.addEventListener("submit", async (event) => {

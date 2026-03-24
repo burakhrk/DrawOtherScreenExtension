@@ -48,19 +48,24 @@ function hashDeviceKey(deviceKey) {
 
 const store = readStore();
 
-function ensureUserRecord(userId, displayName = "Misafir") {
+function ensureUserRecord(userId, displayName) {
   if (!store.users[userId]) {
     store.users[userId] = {
       userId,
-      displayName,
-      friends: []
+      displayName: displayName || "Misafir",
+      friends: [],
+      incomingRequests: []
     };
-  } else if (displayName) {
+  } else if (displayName && displayName.trim()) {
     store.users[userId].displayName = displayName;
   }
 
   if (!Array.isArray(store.users[userId].friends)) {
     store.users[userId].friends = [];
+  }
+
+  if (!Array.isArray(store.users[userId].incomingRequests)) {
+    store.users[userId].incomingRequests = [];
   }
 
   return store.users[userId];
@@ -103,9 +108,7 @@ function sendToSocket(socket, payload) {
 }
 
 function sendToUser(userId, payload) {
-  const sockets = getSocketMap(userId);
-
-  for (const socket of sockets.values()) {
+  for (const socket of getSocketMap(userId).values()) {
     sendToSocket(socket, payload);
   }
 }
@@ -121,7 +124,7 @@ function sendToClient(userId, clientId, payload) {
   return false;
 }
 
-function getFriendList(userId) {
+function getFriends(userId) {
   const user = store.users[userId];
   if (!user) {
     return [];
@@ -144,27 +147,68 @@ function getFriendList(userId) {
     });
 }
 
-function pushFriendList(userId) {
+function getIncomingRequests(userId) {
+  const user = store.users[userId];
+  if (!user || !Array.isArray(user.incomingRequests)) {
+    return [];
+  }
+
+  return user.incomingRequests
+    .map((requesterId) => store.users[requesterId])
+    .filter(Boolean)
+    .map((requester) => ({
+      userId: requester.userId,
+      displayName: requester.displayName
+    }));
+}
+
+function getOutgoingRequests(userId) {
+  return Object.values(store.users)
+    .filter((candidate) => Array.isArray(candidate.incomingRequests) && candidate.incomingRequests.includes(userId))
+    .map((candidate) => ({
+      userId: candidate.userId,
+      displayName: candidate.displayName
+    }));
+}
+
+function pushSocialState(userId, messageType = "social-state") {
   if (!store.users[userId]) {
     return;
   }
 
   sendToUser(userId, {
-    type: "friends-update",
-    friends: getFriendList(userId)
+    type: messageType,
+    userId,
+    displayName: store.users[userId].displayName,
+    syncCode: userId,
+    friends: getFriends(userId),
+    incomingRequests: getIncomingRequests(userId),
+    outgoingRequests: getOutgoingRequests(userId)
   });
 }
 
-function notifyPresenceChange(userId) {
-  pushFriendList(userId);
+function notifySocialChange(userId) {
+  const related = new Set([userId]);
   const user = store.users[userId];
 
-  if (!user) {
-    return;
+  if (user) {
+    for (const friendId of user.friends) {
+      related.add(friendId);
+    }
+
+    for (const requesterId of user.incomingRequests || []) {
+      related.add(requesterId);
+    }
   }
 
-  for (const friendId of user.friends) {
-    pushFriendList(friendId);
+  for (const candidate of Object.values(store.users)) {
+    if (Array.isArray(candidate.incomingRequests) && candidate.incomingRequests.includes(userId)) {
+      related.add(candidate.userId);
+    }
+  }
+
+  for (const targetUserId of related) {
+    pushSocialState(targetUserId);
   }
 }
 
@@ -179,7 +223,6 @@ function clearPendingSessionClose(userId) {
 function sendSessionStarted(userId, session, restored = false) {
   const partnerId = session.participants.find((participantId) => participantId !== userId);
   const partner = ensureUserRecord(partnerId);
-  const clientId = session.clientIds[userId];
   const payload = {
     type: "session-started",
     sessionId: session.sessionId,
@@ -193,7 +236,7 @@ function sendSessionStarted(userId, session, restored = false) {
     }
   };
 
-  if (!sendToClient(userId, clientId, payload)) {
+  if (!sendToClient(userId, session.clientIds[userId], payload)) {
     sendToUser(userId, payload);
   }
 }
@@ -212,7 +255,6 @@ function endSession(sessionId, reason) {
     }
 
     clearPendingSessionClose(participantId);
-
     const payload = {
       type: "session-ended",
       sessionId,
@@ -232,10 +274,6 @@ function closeUserSession(userId, reason) {
   }
 }
 
-function isFriend(userId, friendId) {
-  return store.users[userId]?.friends.includes(friendId) ?? false;
-}
-
 function validateUserIdentity(message, socket) {
   if (!message.userId || !message.clientId || !message.deviceKey) {
     sendToSocket(socket, {
@@ -246,7 +284,7 @@ function validateUserIdentity(message, socket) {
     return null;
   }
 
-  const user = ensureUserRecord(message.userId, message.displayName);
+  const user = ensureUserRecord(message.userId, message.displayName || "Misafir");
   const incomingHash = hashDeviceKey(message.deviceKey);
 
   if (!user.deviceKeyHash) {
@@ -262,6 +300,10 @@ function validateUserIdentity(message, socket) {
   }
 
   return user;
+}
+
+function areFriends(userId, otherUserId) {
+  return store.users[userId]?.friends.includes(otherUserId) ?? false;
 }
 
 const httpServer = http.createServer((request, response) => {
@@ -323,15 +365,7 @@ wss.on("connection", (socket) => {
       sockets.set(socket.clientId, socket);
       activeClientByUserId.set(user.userId, socket.clientId);
       clearPendingSessionClose(user.userId);
-
-      sendToSocket(socket, {
-        type: "registered",
-        userId: user.userId,
-        clientId: socket.clientId,
-        displayName: user.displayName,
-        syncCode: user.userId,
-        friends: getFriendList(user.userId)
-      });
+      pushSocialState(user.userId, "registered");
 
       const activeSessionId = activeSessionByUserId.get(user.userId);
       const activeSession = sessions.get(activeSessionId);
@@ -341,7 +375,7 @@ wss.on("connection", (socket) => {
         sendSessionStarted(user.userId, activeSession, true);
       }
 
-      notifyPresenceChange(user.userId);
+      notifySocialChange(user.userId);
       return;
     }
 
@@ -353,7 +387,7 @@ wss.on("connection", (socket) => {
     const user = ensureUserRecord(userId);
     activeClientByUserId.set(userId, socket.clientId);
 
-    if (message.type === "sync-friend") {
+    if (message.type === "send-friend-request") {
       const friendId = message.friendCode;
 
       if (!store.users[friendId]) {
@@ -367,33 +401,81 @@ wss.on("connection", (socket) => {
       if (friendId === userId) {
         sendToSocket(socket, {
           type: "error",
-          message: "Kendinle sync olamazsin."
+          message: "Kendine istek gonderemezsin."
         });
         return;
       }
 
       const friend = ensureUserRecord(friendId);
 
-      if (!user.friends.includes(friendId)) {
-        user.friends.push(friendId);
+      if (areFriends(userId, friendId)) {
+        sendToSocket(socket, {
+          type: "error",
+          message: "Bu kullanici zaten arkadas listende."
+        });
+        return;
       }
 
-      if (!friend.friends.includes(userId)) {
-        friend.friends.push(userId);
+      if (!friend.incomingRequests.includes(userId)) {
+        friend.incomingRequests.push(userId);
+        writeStore(store);
+      }
+
+      pushSocialState(userId);
+      pushSocialState(friendId);
+      sendToSocket(socket, {
+        type: "friend-request-sent",
+        friend: {
+          userId: friend.userId,
+          displayName: friend.displayName
+        }
+      });
+      return;
+    }
+
+    if (message.type === "accept-friend-request" || message.type === "reject-friend-request") {
+      const requesterId = message.requesterId;
+      const requester = ensureUserRecord(requesterId);
+
+      if (!user.incomingRequests.includes(requesterId)) {
+        sendToSocket(socket, {
+          type: "error",
+          message: "Böyle bir istek bulunamadi."
+        });
+        return;
+      }
+
+      user.incomingRequests = user.incomingRequests.filter((id) => id !== requesterId);
+
+      if (message.type === "accept-friend-request") {
+        if (!user.friends.includes(requesterId)) {
+          user.friends.push(requesterId);
+        }
+
+        if (!requester.friends.includes(userId)) {
+          requester.friends.push(userId);
+        }
+
+        sendToUser(requesterId, {
+          type: "friend-request-accepted",
+          friend: {
+            userId,
+            displayName: user.displayName
+          }
+        });
+      } else {
+        sendToUser(requesterId, {
+          type: "friend-request-rejected",
+          friend: {
+            userId,
+            displayName: user.displayName
+          }
+        });
       }
 
       writeStore(store);
-      pushFriendList(userId);
-      pushFriendList(friendId);
-
-      sendToSocket(socket, {
-        type: "sync-success",
-        friend: {
-          userId: friend.userId,
-          displayName: friend.displayName,
-          online: isOnline(friend.userId)
-        }
-      });
+      pushSocialState(userId);
+      pushSocialState(requesterId);
       return;
     }
 
@@ -408,10 +490,10 @@ wss.on("connection", (socket) => {
         return;
       }
 
-      if (!isFriend(userId, targetUserId)) {
+      if (!areFriends(userId, targetUserId)) {
         sendToSocket(socket, {
           type: "error",
-          message: "Yalnizca sync oldugun kisilerle oturum baslatabilirsin."
+          message: "Yalnizca kabul edilmis arkadaslarla oturum baslatabilirsin."
         });
         return;
       }
@@ -481,11 +563,7 @@ wss.on("connection", (socket) => {
     const sessionId = activeSessionByUserId.get(userId);
     const session = sessions.get(sessionId);
 
-    if (
-      !session ||
-      message.sessionId !== sessionId ||
-      session.clientIds[userId] !== socket.clientId
-    ) {
+    if (!session || message.sessionId !== sessionId || session.clientIds[userId] !== socket.clientId) {
       return;
     }
 
@@ -558,12 +636,12 @@ wss.on("connection", (socket) => {
 
         if (!isOnline(userId)) {
           closeUserSession(userId, "Karsi taraf baglantiyi kapatti.");
-          notifyPresenceChange(userId);
+          notifySocialChange(userId);
         }
       }, reconnectGraceMs));
     }
 
-    notifyPresenceChange(userId);
+    notifySocialChange(userId);
   });
 });
 

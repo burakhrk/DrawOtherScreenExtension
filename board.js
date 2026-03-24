@@ -4,7 +4,7 @@ const userId = params.get("userId") || crypto.randomUUID();
 const deviceKey = params.get("deviceKey") || crypto.randomUUID();
 const clientId = crypto.randomUUID();
 const displayName = params.get("displayName") || "Misafir";
-const rawServerUrl = params.get("serverUrl") || "ws://localhost:3000";
+const rawServerUrl = params.get("serverUrl") || "https://sync-sketch-party.onrender.com";
 
 const profileName = document.getElementById("profileName");
 const profileMeta = document.getElementById("profileMeta");
@@ -14,6 +14,7 @@ const copySyncCodeButton = document.getElementById("copySyncCode");
 const pairForm = document.getElementById("pairForm");
 const pairCodeInput = document.getElementById("pairCodeInput");
 const friendCount = document.getElementById("friendCount");
+const requestList = document.getElementById("requestList");
 const friendsList = document.getElementById("friendsList");
 const sessionTitle = document.getElementById("sessionTitle");
 const sessionModeText = document.getElementById("sessionModeText");
@@ -36,6 +37,8 @@ let isDrawing = false;
 let lastPoint = null;
 let activeStrokeId = null;
 let friends = [];
+let incomingRequests = [];
+let outgoingRequests = [];
 let currentSession = null;
 
 function toWebSocketUrl(value) {
@@ -126,14 +129,13 @@ function hexToRgba(hex, alpha) {
 function drawCrack(segment) {
   const center = segment.to;
   const baseRadius = Math.max(24, segment.size * 6);
-  const spikes = 8;
 
   context.save();
   context.strokeStyle = hexToRgba(segment.color, 0.85);
   context.lineWidth = Math.max(1, segment.size * 0.45);
 
-  for (let index = 0; index < spikes; index += 1) {
-    const angle = (Math.PI * 2 * index) / spikes + ((segment.seed || 0) * 0.35);
+  for (let index = 0; index < 8; index += 1) {
+    const angle = (Math.PI * 2 * index) / 8 + ((segment.seed || 0) * 0.35);
     const radius = baseRadius * (0.75 + ((index % 3) * 0.18));
     const branchX = center.x + Math.cos(angle) * radius;
     const branchY = center.y + Math.sin(angle) * radius;
@@ -141,14 +143,6 @@ function drawCrack(segment) {
     context.beginPath();
     context.moveTo(center.x, center.y);
     context.lineTo(branchX, branchY);
-    context.stroke();
-
-    const splitAngle = angle + 0.35;
-    const splitX = center.x + Math.cos(splitAngle) * (radius * 0.56);
-    const splitY = center.y + Math.sin(splitAngle) * (radius * 0.56);
-    context.beginPath();
-    context.moveTo(branchX, branchY);
-    context.lineTo(splitX, splitY);
     context.stroke();
   }
 
@@ -161,7 +155,6 @@ function drawCrack(segment) {
 
 function drawScribble(segment) {
   const center = segment.to;
-  const loops = 3;
   const radius = Math.max(14, segment.size * 3.4);
 
   context.save();
@@ -170,7 +163,7 @@ function drawScribble(segment) {
   context.beginPath();
 
   for (let index = 0; index <= 24; index += 1) {
-    const angle = (Math.PI * 2 * loops * index) / 24;
+    const angle = (Math.PI * 6 * index) / 24;
     const wobble = radius * (0.75 + (Math.sin(angle * 1.7 + (segment.seed || 0)) * 0.22));
     const x = center.x + Math.cos(angle) * wobble;
     const y = center.y + Math.sin(angle) * wobble;
@@ -213,27 +206,43 @@ function drawDrip(segment) {
   context.restore();
 }
 
+function denormalizePoint(point) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (point.x / 1000) * rect.width,
+    y: (point.y / 1000) * rect.height
+  };
+}
+
 function drawSegment(segment) {
-  if (segment.effect === "crack") {
-    drawCrack(segment);
+  const drawableSegment = segment.normalized
+    ? {
+        ...segment,
+        from: denormalizePoint(segment.from),
+        to: denormalizePoint(segment.to)
+      }
+    : segment;
+
+  if (drawableSegment.effect === "crack") {
+    drawCrack(drawableSegment);
     return;
   }
 
-  if (segment.effect === "scribble") {
-    drawScribble(segment);
+  if (drawableSegment.effect === "scribble") {
+    drawScribble(drawableSegment);
     return;
   }
 
-  if (segment.effect === "drip") {
-    drawDrip(segment);
+  if (drawableSegment.effect === "drip") {
+    drawDrip(drawableSegment);
     return;
   }
 
-  context.strokeStyle = segment.color;
-  context.lineWidth = segment.size;
+  context.strokeStyle = drawableSegment.color;
+  context.lineWidth = drawableSegment.size;
   context.beginPath();
-  context.moveTo(segment.from.x, segment.from.y);
-  context.lineTo(segment.to.x, segment.to.y);
+  context.moveTo(drawableSegment.from.x, drawableSegment.from.y);
+  context.lineTo(drawableSegment.to.x, drawableSegment.to.y);
   context.stroke();
 }
 
@@ -249,6 +258,55 @@ function send(payload) {
   }
 }
 
+function showSurpriseEffect(segment) {
+  if (!chrome?.runtime?.sendMessage) {
+    return;
+  }
+
+  chrome.runtime.sendMessage({
+    type: "SHOW_SURPRISE_EFFECT",
+    segment
+  }).catch(() => {});
+}
+
+function clearSurpriseEffect() {
+  if (!chrome?.runtime?.sendMessage) {
+    return;
+  }
+
+  chrome.runtime.sendMessage({
+    type: "CLEAR_SURPRISE_EFFECT"
+  }).catch(() => {});
+}
+
+function renderRequests() {
+  requestList.innerHTML = "";
+
+  for (const request of incomingRequests) {
+    const card = document.createElement("article");
+    card.className = "request-card";
+    card.innerHTML = `
+      <strong>${request.displayName}</strong>
+      <div class="friend-meta">Sana arkadaslik istegi gonderdi.</div>
+      <div class="request-actions">
+        <button class="mini-button" data-action="accept" data-user-id="${request.userId}">Kabul et</button>
+        <button class="mini-button" data-action="reject" data-user-id="${request.userId}">Reddet</button>
+      </div>
+    `;
+    requestList.appendChild(card);
+  }
+
+  for (const request of outgoingRequests) {
+    const card = document.createElement("article");
+    card.className = "request-card";
+    card.innerHTML = `
+      <strong>${request.displayName}</strong>
+      <div class="friend-meta">Istek bekleniyor.</div>
+    `;
+    requestList.appendChild(card);
+  }
+}
+
 function renderFriends() {
   friendCount.textContent = `${friends.length} kisi`;
   friendsList.innerHTML = "";
@@ -256,7 +314,7 @@ function renderFriends() {
   if (friends.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Henuz sync oldugun biri yok. Yukaridaki alandan bir sync kodu ekleyebilirsin.";
+    empty.textContent = "Henuz kabul edilmis arkadasin yok. Yukaridaki alandan bir sync kodu gonder.";
     friendsList.appendChild(empty);
     return;
   }
@@ -304,17 +362,18 @@ function updateSessionUI() {
   const modeLabel = currentSession.mode === "live" ? "Es zamanli cizim" : "Tek yonlu cizim gonderme";
   const modeHint = currentSession.drawEnabled
     ? "Bu oturumda cizim yapabilirsin."
-    : "Bu modda yalnizca diger kullanicinin gonderdigi cizimi izliyorsun.";
+    : "Surpriz efektler karsinin aktif sekmesine duser.";
 
   sessionTitle.textContent = currentSession.partner.displayName;
   sessionModeText.textContent = `${modeLabel} - ${modeHint}`;
   presence.textContent = currentSession.partner.online ? "Secilen arkadas online" : "Secilen arkadas offline";
-
   drawGuard.classList.add("hidden");
 }
 
-function applyFriends(nextFriends) {
-  friends = nextFriends;
+function applySocialState(payload) {
+  friends = payload.friends ?? friends;
+  incomingRequests = payload.incomingRequests ?? incomingRequests;
+  outgoingRequests = payload.outgoingRequests ?? outgoingRequests;
 
   if (currentSession) {
     const updatedPartner = friends.find((friend) => friend.userId === currentSession.partner.userId);
@@ -323,6 +382,7 @@ function applyFriends(nextFriends) {
     }
   }
 
+  renderRequests();
   renderFriends();
   updateSessionUI();
 }
@@ -347,26 +407,39 @@ function connect() {
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
 
-    if (message.type === "registered") {
-      applyFriends(message.friends);
+    if (message.type === "registered" || message.type === "social-state") {
+      applySocialState(message);
+      if (message.type === "registered") {
+        addMessage({
+          system: true,
+          text: `${message.displayName} olarak baglandin. Sync kodunu paylasip istek gonderebilirsin.`
+        });
+      }
+      return;
+    }
+
+    if (message.type === "friend-request-sent") {
+      pairCodeInput.value = "";
+      setStatus("Istek gonderildi", "ok");
       addMessage({
         system: true,
-        text: "Profil hazir. Sync kodunu paylasip arkadas ekleyebilirsin."
+        text: `${message.friend.displayName} kullanicisina istek gonderildi.`
       });
       return;
     }
 
-    if (message.type === "friends-update") {
-      applyFriends(message.friends);
+    if (message.type === "friend-request-accepted") {
+      addMessage({
+        system: true,
+        text: `${message.friend.displayName} istegini kabul etti.`
+      });
       return;
     }
 
-    if (message.type === "sync-success") {
-      pairCodeInput.value = "";
-      setStatus("Sync tamamlandi", "ok");
+    if (message.type === "friend-request-rejected") {
       addMessage({
         system: true,
-        text: `${message.friend.displayName} ile basariyla sync oldun.`
+        text: `${message.friend.displayName} istegini reddetti.`
       });
       return;
     }
@@ -379,6 +452,7 @@ function connect() {
         partner: message.partner
       };
       context.clearRect(0, 0, canvas.width, canvas.height);
+      clearSurpriseEffect();
       if (!message.restored) {
         messages.innerHTML = "";
       }
@@ -396,6 +470,7 @@ function connect() {
       currentSession = null;
       resetPointerState();
       context.clearRect(0, 0, canvas.width, canvas.height);
+      clearSurpriseEffect();
       updateSessionUI();
       addMessage({
         system: true,
@@ -411,11 +486,13 @@ function connect() {
 
     if (message.type === "draw-segment") {
       drawSegment(message.segment);
+      showSurpriseEffect(message.segment);
       return;
     }
 
     if (message.type === "clear-canvas") {
       context.clearRect(0, 0, canvas.width, canvas.height);
+      clearSurpriseEffect();
       return;
     }
 
@@ -450,6 +527,14 @@ function pointerPosition(event) {
   };
 }
 
+function normalizePoint(point) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: rect.width > 0 ? (point.x / rect.width) * 1000 : 0,
+    y: rect.height > 0 ? (point.y / rect.height) * 1000 : 0
+  };
+}
+
 canvas.addEventListener("pointerdown", (event) => {
   if (!currentSession?.drawEnabled) {
     return;
@@ -466,14 +551,21 @@ canvas.addEventListener("pointerdown", (event) => {
       to: point,
       color: colorPicker.value,
       size: Number(brushSize.value),
-      seed: Math.random() * Math.PI * 2
+      seed: Math.random() * Math.PI * 2,
+      normalizedFrom: normalizePoint(point),
+      normalizedTo: normalizePoint(point)
     };
 
     drawSegment(segment);
     send({
       type: "draw-segment",
       sessionId: currentSession.sessionId,
-      segment
+      segment: {
+        ...segment,
+        normalized: true,
+        from: segment.normalizedFrom,
+        to: segment.normalizedTo
+      }
     });
     return;
   }
@@ -503,7 +595,12 @@ canvas.addEventListener("pointermove", (event) => {
   send({
     type: "draw-segment",
     sessionId: currentSession.sessionId,
-    segment
+    segment: {
+      ...segment,
+      normalized: true,
+      from: normalizePoint(segment.from),
+      to: normalizePoint(segment.to)
+    }
   });
 
   lastPoint = nextPoint;
@@ -541,6 +638,7 @@ clearCanvasButton.addEventListener("click", () => {
   }
 
   context.clearRect(0, 0, canvas.width, canvas.height);
+  clearSurpriseEffect();
   send({
     type: "clear-canvas",
     sessionId: currentSession.sessionId
@@ -571,6 +669,28 @@ friendsList.addEventListener("click", (event) => {
   });
 });
 
+requestList.addEventListener("click", (event) => {
+  const button = event.target.closest(".mini-button");
+  if (!button) {
+    return;
+  }
+
+  const targetUserId = button.dataset.userId;
+  const action = button.dataset.action;
+
+  if (action === "accept") {
+    send({
+      type: "accept-friend-request",
+      requesterId: targetUserId
+    });
+  } else if (action === "reject") {
+    send({
+      type: "reject-friend-request",
+      requesterId: targetUserId
+    });
+  }
+});
+
 pairForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const friendCode = pairCodeInput.value.trim();
@@ -580,7 +700,7 @@ pairForm.addEventListener("submit", (event) => {
   }
 
   send({
-    type: "sync-friend",
+    type: "send-friend-request",
     friendCode
   });
 });

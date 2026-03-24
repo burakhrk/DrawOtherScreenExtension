@@ -163,6 +163,36 @@ h2 {
   align-content: start;
 }
 
+.request-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.request-card {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff7eb;
+}
+
+.request-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.mini-button {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #f3e5d5;
+  color: var(--ink);
+}
+
 .friend-card {
   padding: 14px;
   border: 1px solid var(--line);

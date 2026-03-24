@@ -4,12 +4,30 @@
   "version": "0.1.0",
   "description": "Iki kullanici arasinda canli cizim ve sohbet deneyimi sunan Chrome extension.",
   "permissions": [
-    "storage"
+    "storage",
+    "tabs"
   ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_title": "Sync Sketch Party",
     "default_popup": "popup.html"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "overlay.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
   "web_accessible_resources": [
     {
       "resources": [
