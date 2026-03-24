@@ -60,7 +60,7 @@ const toastStack = document.getElementById("toastStack");
 
 let socket;
 let userId = "";
-let displayName = "Misafir";
+let displayName = "Guest";
 let extensionEnabled = true;
 let appearOnline = true;
 let allowSurprise = true;
@@ -117,7 +117,7 @@ function showToast(title, text) {
 async function openPaywall(source = "dashboard") {
   const paywallUrl = entitlement?.paywallUrl;
   if (!paywallUrl) {
-    setStatus("Paywall adresi henuz ayarlanmis degil");
+    setStatus("The paywall URL is not configured yet");
     return;
   }
 
@@ -134,7 +134,7 @@ function updateMembershipUI() {
   const badge = getEntitlementBadge(entitlement);
   membershipTitle.textContent = badge.title;
   membershipDetail.textContent = badge.detail;
-  membershipPill.textContent = entitlement?.plan === "pro-trial" ? "Pro deneme" : entitlement?.isPro ? "Pro" : "Free";
+  membershipPill.textContent = entitlement?.plan === "pro-trial" ? "Pro trial" : entitlement?.isPro ? "Pro" : "Free";
   membershipPill.style.background = entitlement?.isPro ? "rgba(33, 111, 67, 0.12)" : "#f3e5d5";
   upgradePlanButton.textContent = badge.cta;
   upgradePlanButton.classList.toggle("upgrade-cta", !entitlement?.isPro);
@@ -177,7 +177,7 @@ async function maybeNotifyFriendOnline(friendId) {
 
   notificationsByFriend[friendId] = todayStamp;
   await setLocalObject(FRIEND_ONLINE_NOTIFICATION_KEY, notificationsByFriend);
-  showToast(`${friend.displayName} online oldu`, "Istersen hemen bir cizim ya da surpriz gonderebilirsin.");
+  showToast(`${friend.displayName} is online`, "You can send a drawing or surprise right away.");
 }
 
 function toWebSocketUrl(value) {
@@ -486,7 +486,7 @@ function replayDraftToCurrentSession() {
 
   addMessage({
     system: true,
-    text: `${draftSegments.length} taslak oge gonderildi.`,
+    text: `${draftSegments.length} draft items were sent.`,
   });
   draftSegments = [];
   updateSessionUI();
@@ -523,10 +523,10 @@ function renderRequests() {
     card.className = "request-card";
     card.innerHTML = `
       <strong>${request.displayName}</strong>
-      <div class="friend-meta">Sana arkadaslik istegi gonderdi.</div>
+      <div class="friend-meta">Sent you a friend request.</div>
       <div class="request-actions">
-        <button class="mini-button" data-action="accept" data-request-id="${request.id}">Kabul et</button>
-        <button class="mini-button" data-action="reject" data-request-id="${request.id}">Reddet</button>
+        <button class="mini-button" data-action="accept" data-request-id="${request.id}">Accept</button>
+        <button class="mini-button" data-action="reject" data-request-id="${request.id}">Reject</button>
       </div>
     `;
     requestList.appendChild(card);
@@ -537,20 +537,20 @@ function renderRequests() {
     card.className = "request-card";
     card.innerHTML = `
       <strong>${request.displayName}</strong>
-      <div class="friend-meta">Istek bekleniyor.</div>
+      <div class="friend-meta">Request pending.</div>
     `;
     requestList.appendChild(card);
   }
 }
 
 function renderFriends() {
-  friendCount.textContent = `${friends.length} kisi`;
+  friendCount.textContent = `${friends.length} people`;
   friendsList.innerHTML = "";
 
   if (friends.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Henuz kabul edilmis arkadasin yok. Yukaridaki alandan bir kullanici ID'si gonder.";
+    empty.textContent = "You do not have any accepted friends yet. Send a user ID from the field above.";
     friendsList.appendChild(empty);
     return;
   }
@@ -575,9 +575,9 @@ function renderFriends() {
         </span>
       </div>
       <div class="friend-actions">
-        <button class="mode-button" data-user-id="${friend.userId}" data-mode="send" ${disabled} ${allowSurprise ? "" : surpriseDisabled}>Ciz gonder</button>
+        <button class="mode-button" data-user-id="${friend.userId}" data-mode="send" ${disabled} ${allowSurprise ? "" : surpriseDisabled}>Send drawing</button>
         <button class="mode-button ${liveLocked ? "pro-lock" : ""}" data-user-id="${friend.userId}" data-mode="live" ${disabled} ${liveLocked ? "data-pro-lock=\"true\"" : ""}>${liveLocked ? "Es zamanli • Pro" : "Es zamanli"}</button>
-        <button class="mode-button" data-user-id="${friend.userId}" data-mode="draft" ${draftDisabled}>Taslak gonder</button>
+        <button class="mode-button" data-user-id="${friend.userId}" data-mode="draft" ${draftDisabled}>Send draft</button>
       </div>
     `;
 
@@ -593,26 +593,26 @@ function updateSessionUI() {
   leaveSessionButton.disabled = !hasSession;
 
   if (!hasSession) {
-    sessionTitle.textContent = draftSegments.length > 0 ? "Taslak hazir" : "Bir arkadas sec";
+    sessionTitle.textContent = draftSegments.length > 0 ? "Draft ready" : "Choose a friend";
     sessionModeText.textContent = draftSegments.length > 0
-      ? `${draftSegments.length} oge hazir. Soldan bir arkadas secip Taslak gonder diyebilirsin.`
-      : "Cizim baslatmak icin soldan bir kisi sec veya once taslak hazirla.";
-    presence.textContent = "Arkadas bekleniyor";
+      ? `${draftSegments.length} items are ready. Choose a friend on the left and press Send draft.`
+      : "Choose someone on the left to start drawing, or prepare a draft first.";
+    presence.textContent = "Waiting for a friend";
     drawGuard.classList.remove("hidden");
     drawGuard.textContent = draftSegments.length > 0
-      ? "Taslagin kaydedildi. Simdi soldan bir alici sec."
-      : "Aktif oturum yok. Burada once ciz, sonra alici secebilirsin.";
+      ? "Your draft is saved. Now choose a recipient from the left."
+      : "There is no active session. Draw here first, then choose a recipient.";
     return;
   }
 
-  const modeLabel = currentSession.mode === "live" ? "Es zamanli cizim" : "Tek yonlu cizim gonderme";
+  const modeLabel = currentSession.mode === "live" ? "Live drawing" : "One-way drawing send";
   const modeHint = currentSession.drawEnabled
-    ? "Bu oturumda cizim yapabilirsin."
-    : "Surpriz efektler karsinin aktif sekmesine duser.";
+    ? "You can draw in this session."
+    : "Surprise effects will appear on the other person's active tab.";
 
   sessionTitle.textContent = currentSession.partner.displayName;
   sessionModeText.textContent = `${modeLabel} - ${modeHint}`;
-  presence.textContent = getFriendOnline(currentSession.partner.userId) ? "Secilen arkadas online" : "Secilen arkadas offline";
+  presence.textContent = getFriendOnline(currentSession.partner.userId) ? "Selected friend is online" : "Selected friend is offline";
   drawGuard.classList.add("hidden");
 }
 
@@ -634,8 +634,8 @@ function applySocialState(state) {
   profileName.textContent = displayName;
   profileNameInput.value = displayName;
   profileMeta.textContent = extensionEnabled
-    ? `Sunucu: ${serverUrl}`
-    : `Pasif mod - Sunucu: ${serverUrl}`;
+    ? `Server: ${serverUrl}`
+    : `Inactive mode - Server: ${serverUrl}`;
   syncCode.textContent = userId;
 
   updateMembershipUI();
@@ -643,7 +643,7 @@ function applySocialState(state) {
   renderRequests();
   renderFriends();
   updateSessionUI();
-  setGlobalStatus(appearOnline && extensionEnabled ? "Online" : "Pasif", appearOnline && extensionEnabled);
+  setGlobalStatus(appearOnline && extensionEnabled ? "Online" : "Inactive", appearOnline && extensionEnabled);
 }
 
 async function applyQuickAction() {
@@ -660,7 +660,7 @@ async function applyQuickAction() {
     chatInput.value = action.text;
     addMessage({
       system: true,
-      text: "Hizli mesaj taslagi eklendi. Bir arkadas secip gonderebilirsin.",
+      text: "A quick message draft was added. Choose a friend and send it.",
     });
   }
 
@@ -668,7 +668,7 @@ async function applyQuickAction() {
     if (!canUseEffect(action.effect)) {
       addMessage({
         system: true,
-        text: "Bu hizli efekt Pro uyelige acik. Paywall sayfasina yonlendiriliyorsun.",
+        text: "This quick effect is available with Pro. Redirecting you to the paywall.",
       });
       void openPaywall("quick-effect-locked");
       return;
@@ -696,7 +696,7 @@ async function applyQuickAction() {
     storeDraft(segment);
     addMessage({
       system: true,
-      text: `${action.label || action.effect} hizli taslak olarak eklendi.`,
+      text: `${action.label || action.effect} was added as a quick draft.`,
     });
   }
 }
@@ -722,7 +722,7 @@ function createSegment(effect, point, nextPoint = point) {
 }
 
 function connect() {
-  setStatus("Baglanti kuruluyor...");
+  setStatus("Connecting...");
   socket = new WebSocket(serverUrl);
 
   socket.addEventListener("open", async () => {
@@ -730,7 +730,7 @@ function connect() {
       const accessToken = await getAccessToken();
 
       if (!accessToken) {
-        setStatus("Oturum zamani dolmus");
+        setStatus("Session expired");
         socket.close();
         return;
       }
@@ -747,9 +747,9 @@ function connect() {
           allowSurprise,
         },
       });
-      setStatus("Bagli", "ok");
+      setStatus("Connected", "ok");
     } catch (error) {
-      setStatus(error.message || "Oturum dogrulanamadi");
+      setStatus(error.message || "Session could not be verified");
       socket.close();
     }
   });
@@ -760,7 +760,7 @@ function connect() {
     if (message.type === "registered") {
       addMessage({
         system: true,
-        text: `${displayName} olarak baglandin. Arkadaslarin Supabase hesabindan yuklendi.`,
+        text: `Connected as ${displayName}. Your friends were loaded from your Supabase account.`,
       });
       return;
     }
@@ -806,8 +806,8 @@ function connect() {
       addMessage({
         system: true,
         text: message.restored
-          ? `${message.partner.displayName} ile oturum geri baglandi.`
-          : `${message.partner.displayName} ile yeni bir oturum basladi.`,
+          ? `Session restored with ${message.partner.displayName}.`
+          : `A new session started with ${message.partner.displayName}.`,
       });
 
       if (
@@ -840,7 +840,7 @@ function connect() {
       updateSessionUI();
       addMessage({
         system: true,
-        text: message.reason || "Oturum kapatildi.",
+        text: message.reason || "Session ended.",
       });
       return;
     }
@@ -878,13 +878,13 @@ function connect() {
     hasPresenceSnapshot = false;
     resetPointerState();
     updateSessionUI();
-    setStatus("Baglanti koptu, tekrar deneniyor...");
+    setStatus("Connection lost, retrying...");
     setGlobalStatus("Offline");
     window.setTimeout(connect, 1500);
   });
 
   socket.addEventListener("error", () => {
-    setStatus("Sunucuya ulasilamadi");
+    setStatus("The server could not be reached");
   });
 }
 
@@ -895,7 +895,7 @@ canvas.addEventListener("pointerdown", (event) => {
   if (!canUseEffect(selectedEffect)) {
     addMessage({
       system: true,
-      text: "Bu efekt Pro uyelere acik. Free planda temel efektleri kullanabilirsin.",
+      text: "This effect is available with Pro. On Free, you can use the basic effects.",
     });
     void openPaywall("effect-locked");
     ensureAllowedEffectSelection();
@@ -994,7 +994,7 @@ profileForm.addEventListener("submit", async (event) => {
   try {
     const state = await updateProfile(nextName);
     applySocialState(state);
-    setStatus("Profil guncellendi", "ok");
+    setStatus("Profile updated", "ok");
     if (socket?.readyState === WebSocket.OPEN) {
       const accessToken = await getAccessToken();
       send({
@@ -1011,7 +1011,7 @@ profileForm.addEventListener("submit", async (event) => {
       });
     }
   } catch (error) {
-    setStatus(error.message || "Profil guncellenemedi");
+    setStatus(error.message || "Profile could not be updated");
   }
 });
 
@@ -1032,7 +1032,7 @@ clearCanvasButton.addEventListener("click", () => {
 
 sendDraftButton.addEventListener("click", () => {
   if (draftSegments.length === 0) {
-    setStatus("Once taslak hazirla");
+    setStatus("Create a draft first");
     return;
   }
 
@@ -1045,7 +1045,7 @@ sendDraftButton.addEventListener("click", () => {
 
   addMessage({
     system: true,
-    text: "Taslak hazir. Soldaki listeden bir arkadasin yanindaki Taslak gonder dugmesine bas.",
+    text: "Your draft is ready. Press Send draft next to a friend in the list on the left.",
   });
 });
 
@@ -1075,7 +1075,7 @@ friendsList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.proLock === "true") {
-    setStatus("Es zamanli cizim Pro uyelere acik");
+    setStatus("Live drawing is available to Pro members");
     void openPaywall("live-mode-locked");
     return;
   }
@@ -1101,13 +1101,13 @@ requestList.addEventListener("click", (event) => {
   if (button.dataset.action === "accept") {
     void acceptFriendRequest(requestId)
       .then(applySocialState)
-      .then(() => setStatus("Istek kabul edildi", "ok"))
-      .catch((error) => setStatus(error.message || "Istek kabul edilemedi"));
+      .then(() => setStatus("Request accepted", "ok"))
+      .catch((error) => setStatus(error.message || "The request could not be accepted"));
   } else if (button.dataset.action === "reject") {
     void rejectFriendRequest(requestId)
       .then(applySocialState)
-      .then(() => setStatus("Istek reddedildi", "ok"))
-      .catch((error) => setStatus(error.message || "Istek reddedilemedi"));
+      .then(() => setStatus("Request rejected", "ok"))
+      .catch((error) => setStatus(error.message || "The request could not be rejected"));
   }
 });
 
@@ -1123,21 +1123,21 @@ pairForm.addEventListener("submit", async (event) => {
     const state = await sendFriendRequest(friendCode);
     applySocialState(state);
     pairCodeInput.value = "";
-    setStatus("Istek gonderildi", "ok");
+    setStatus("Request sent", "ok");
   } catch (error) {
-    setStatus(error.message || "Istek gonderilemedi");
+    setStatus(error.message || "The request could not be sent");
   }
 });
 
 copySyncCodeButton.addEventListener("click", async () => {
   await navigator.clipboard.writeText(userId);
-  setStatus("Kullanici ID kopyalandi", "ok");
+  setStatus("User ID copied", "ok");
 });
 
 window.addEventListener("resize", resizeCanvas);
 effectPicker.addEventListener("change", () => {
   if (!canUseEffect(effectPicker.value)) {
-    setStatus("Bu efekt Pro uyelere acik");
+    setStatus("This effect is available to Pro members");
     void openPaywall("effect-picker-locked");
     ensureAllowedEffectSelection();
   }
@@ -1156,21 +1156,21 @@ async function handleSessionStart(targetUserId, mode) {
       mode,
     });
   } catch (error) {
-    setStatus(error.message || "Oturum baslatilamadi");
+    setStatus(error.message || "The session could not be started");
   }
 }
 
 async function initialize() {
   resizeCanvas();
   updateSessionUI();
-  setStatus("Hesap yukleniyor...");
-  setGlobalStatus("Baglaniyor");
+  setStatus("Loading account...");
+  setGlobalStatus("Connecting");
 
   const user = await getCurrentUser();
   if (!user) {
-    setStatus("Oturum bulunamadi");
+    setStatus("No session found");
     drawGuard.classList.remove("hidden");
-    drawGuard.textContent = "Once popup uzerinden Google ile giris yap.";
+    drawGuard.textContent = "Sign in with Google from the popup first.";
     return;
   }
 
@@ -1187,7 +1187,8 @@ async function initialize() {
 
 void initialize().catch((error) => {
   console.error(error);
-  setStatus(error.message || "Sayfa baslatilamadi");
+  setStatus(error.message || "The page could not be initialized");
   drawGuard.classList.remove("hidden");
-  drawGuard.textContent = "Hesap veya sosyal durum yuklenemedi.";
+  drawGuard.textContent = "Account or social state could not be loaded.";
 });
+

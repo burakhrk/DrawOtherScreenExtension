@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -11,10 +11,10 @@
       <section class="hero">
         <div>
           <p class="eyebrow">Drawing Office</p>
-          <h1>Arkadasini sec, mesajini ya da surprizini hizla hazirla.</h1>
+          <h1>Pick a friend and prepare a quick message or surprise.</h1>
         </div>
         <p class="subcopy">
-          Google ile girdiginde profilin, arkadaslarin ve uygulama tercihlerin geri gelir. Bu popup hizli baslatma noktasi olsun.
+          Sign in with Google to restore your profile, friends, and app preferences. Let this popup be your fast launch point.
         </p>
       </section>
 
@@ -23,63 +23,63 @@
           <div id="accountAvatar" class="account-avatar">DO</div>
           <div class="account-copy">
             <div class="account-row">
-              <h2 id="accountTitle">Google ile giris bekleniyor</h2>
-              <span id="accountStatePill" class="state-pill">Hazir degil</span>
+              <h2 id="accountTitle">Waiting for Google sign-in</h2>
+              <span id="accountStatePill" class="state-pill">Not ready</span>
             </div>
-            <p id="accountSubtitle" class="subcopy">Oturum acinca sosyal durumun hesabindan yuklenecek.</p>
+            <p id="accountSubtitle" class="subcopy">Your social state will load from your account after sign-in.</p>
           </div>
         </div>
         <div class="account-actions">
-          <button id="signInButton" type="button">Google ile Gir</button>
-          <button id="signOutButton" type="button" class="ghost danger hidden">Cikis Yap</button>
+          <button id="signInButton" type="button">Sign in with Google</button>
+          <button id="signOutButton" type="button" class="ghost danger hidden">Sign out</button>
         </div>
       </section>
 
       <section class="plan-card">
         <div class="plan-copy">
           <div class="plan-row">
-            <p class="eyebrow">Uyelik</p>
+            <p class="eyebrow">Membership</p>
             <span id="planStatePill" class="plan-pill">Free</span>
           </div>
-          <h2 id="planTitle">Ilk 48 saat Pro deneme</h2>
-          <p id="planDetail" class="subcopy">Sonrasinda bazi gelismis ozellikler Pro olarak kilitlenecek.</p>
+          <h2 id="planTitle">Your first 48 hours are a Pro trial</h2>
+          <p id="planDetail" class="subcopy">After that, some advanced features will stay locked behind Pro.</p>
         </div>
-        <button id="upgradeButton" type="button" class="ghost">Planlari Gor</button>
+        <button id="upgradeButton" type="button" class="ghost">View plans</button>
       </section>
 
       <section class="launch-card">
         <div class="section-top">
           <div>
-            <p class="eyebrow">Hizli Baslat</p>
-            <h2>Bir sonraki adimi tek bakista sec</h2>
+            <p class="eyebrow">Quick launch</p>
+            <h2>Choose your next step at a glance</h2>
           </div>
-          <button id="openBoardButton" type="button" class="primary-wide">Paneli Ac</button>
+          <button id="openBoardButton" type="button" class="primary-wide">Open board</button>
         </div>
 
         <div class="quick-grid">
           <article class="quick-panel">
             <div class="quick-header">
-              <strong>Hizli mesaj</strong>
-              <span class="mini-hint">Taslak olarak gider</span>
+              <strong>Quick message</strong>
+              <span class="mini-hint">Opens as a draft</span>
             </div>
             <label class="quick-field">
-              <span>Mesaj</span>
-              <input id="quickMessage" type="text" maxlength="160" placeholder="Bak buna, bunu dene, buna cevap ver..." />
+              <span>Message</span>
+              <input id="quickMessage" type="text" maxlength="160" placeholder="Look at this, try this, reply to this..." />
             </label>
-            <button id="openWithMessage" class="secondary-button" type="button">Mesaj taslagi ile ac</button>
+            <button id="openWithMessage" class="secondary-button" type="button">Open with message draft</button>
           </article>
 
           <article class="quick-panel">
             <div class="quick-header">
-              <strong>Efekt hazirla</strong>
-              <span class="mini-hint">Board icinde taslak olur</span>
+              <strong>Prepare an effect</strong>
+              <span class="mini-hint">Opens as a board draft</span>
             </div>
             <div class="effects-shortcuts">
-              <button class="effect-chip" data-effect="crack" data-color="#f4f0ea" type="button">Kirik ekran</button>
-              <button class="effect-chip is-pro-chip" data-effect="bullet" data-color="#d8d2ca" data-pro="true" type="button">Kursun izi • Pro</button>
-              <button class="effect-chip is-pro-chip" data-effect="zap" data-color="#f8f2b3" data-pro="true" type="button">Yildirim • Pro</button>
-              <button class="effect-chip is-pro-chip" data-effect="heartburst" data-color="#ff5b7c" data-pro="true" type="button">Kalp patlamasi • Pro</button>
-              <button class="effect-chip" data-effect="drip" data-color="#cb3046" type="button">Boya damlasi</button>
+              <button class="effect-chip" data-effect="crack" data-color="#f4f0ea" type="button">Broken screen</button>
+              <button class="effect-chip is-pro-chip" data-effect="bullet" data-color="#d8d2ca" data-pro="true" type="button">Bullet impact • Pro</button>
+              <button class="effect-chip is-pro-chip" data-effect="zap" data-color="#f8f2b3" data-pro="true" type="button">Lightning • Pro</button>
+              <button class="effect-chip is-pro-chip" data-effect="heartburst" data-color="#ff5b7c" data-pro="true" type="button">Heart burst • Pro</button>
+              <button class="effect-chip" data-effect="drip" data-color="#cb3046" type="button">Paint drip</button>
               <button class="effect-chip is-pro-chip" data-effect="stickman" data-color="#232018" data-pro="true" type="button">Stickman • Pro</button>
             </div>
           </article>
@@ -90,47 +90,47 @@
         <details class="settings-shell">
           <summary>
             <span>
-              <strong>Tercihler</strong>
-              <small>Gorunurluk, surpriz izinleri ve baglanti</small>
+              <strong>Preferences</strong>
+              <small>Visibility, surprise permissions, and connection</small>
             </span>
-            <span class="summary-pill">Ayarlar</span>
+            <span class="summary-pill">Settings</span>
           </summary>
 
           <div class="settings-body">
             <label>
-              <span>Sunucu adresi</span>
+              <span>Server URL</span>
               <input id="serverUrl" name="serverUrl" type="url" placeholder="https://sync-sketch-party.onrender.com" required />
             </label>
 
             <section class="settings-card">
               <label class="toggle-row">
                 <div>
-                  <strong>Extension aktif</strong>
-                  <p>Pasifken cevrimdisi gibi gorun ve yeni oturum alma.</p>
+                  <strong>Extension enabled</strong>
+                  <p>When disabled, you appear unavailable and cannot receive new sessions.</p>
                 </div>
                 <input id="extensionEnabled" type="checkbox" checked />
               </label>
 
               <label class="toggle-row">
                 <div>
-                  <strong>Online gorun</strong>
-                  <p>Kapaliyken arkadas listesinde offline gibi gorunursun.</p>
+                  <strong>Appear online</strong>
+                  <p>When off, you appear offline in friend lists.</p>
                 </div>
                 <input id="appearOnline" type="checkbox" checked />
               </label>
 
               <label class="toggle-row">
                 <div>
-                  <strong>Surpriz efektlere izin ver</strong>
-                  <p>Kapaliyken aktif sekmede anlik bam efektleri gosterilmez.</p>
+                  <strong>Allow surprise effects</strong>
+                  <p>When off, surprise overlays will not appear on your active tab.</p>
                 </div>
                 <input id="allowSurprise" type="checkbox" checked />
               </label>
 
               <label class="toggle-row">
                 <div>
-                  <strong>Arkadas online bildirimleri</strong>
-                  <p>Varsayilan kapali gelir. Acarsan online olan arkadaslar icin kisa toast gorursun.</p>
+                  <strong>Friend online notifications</strong>
+                  <p>Off by default. Turn it on to see short toasts when friends come online.</p>
                 </div>
                 <input id="friendOnlineNotifications" type="checkbox" />
               </label>
@@ -140,7 +140,7 @@
       </form>
 
       <p id="statusText" class="hint">
-        Giris yaptiginda Drawing Office sosyal durumunu hesabindan yukler.
+        Once you sign in, Drawing Office loads your social state from your account.
       </p>
     </main>
 

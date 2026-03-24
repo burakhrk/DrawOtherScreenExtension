@@ -169,7 +169,7 @@ export async function setPreferences({ extensionEnabled, appearOnline, allowSurp
 export async function updateProfile(displayName) {
   const user = await getCurrentUser();
   if (!user) {
-    throw new Error("Oturum bulunamadi.");
+    throw new Error("No active session was found.");
   }
 
   const { error } = await supabase

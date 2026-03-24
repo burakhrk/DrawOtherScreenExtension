@@ -71,7 +71,7 @@ function applyEntitlementUI(entitlement) {
   const badge = getEntitlementBadge(entitlement);
   const isPro = Boolean(entitlement?.isPro);
 
-  planStatePill.textContent = entitlement?.plan === "pro-trial" ? "Pro deneme" : isPro ? "Pro" : "Free";
+  planStatePill.textContent = entitlement?.plan === "pro-trial" ? "Pro trial" : isPro ? "Pro" : "Free";
   planStatePill.style.background = isPro ? "var(--success)" : "#f3e5d5";
   planTitle.textContent = badge.title;
   planDetail.textContent = badge.detail;
@@ -86,7 +86,7 @@ function applyEntitlementUI(entitlement) {
 async function openPaywall() {
   const paywallUrl = currentState?.entitlement?.paywallUrl;
   if (!paywallUrl) {
-    statusText.textContent = "Paywall adresi henuz ayarlanmis degil.";
+    statusText.textContent = "The paywall URL is not configured yet.";
     return;
   }
 
@@ -126,12 +126,12 @@ async function applyBootstrapState(state) {
   friendOnlineNotificationsInput.checked = Boolean(notificationsEnabled);
 
   if (!state) {
-    accountTitle.textContent = "Google ile giris bekleniyor";
-    accountSubtitle.textContent = "Oturum acinca arkadaslarin ve tercihler tekrar yuklenecek.";
+    accountTitle.textContent = "Waiting for Google sign-in";
+    accountSubtitle.textContent = "Once you sign in, your friends and preferences will load again.";
     accountAvatar.textContent = "DO";
-    accountStatePill.textContent = "Hazir degil";
+    accountStatePill.textContent = "Not ready";
     accountStatePill.style.background = "#f3e5d5";
-    statusText.textContent = "Giris yapmadan panel acilmaz.";
+    statusText.textContent = "You need to sign in before opening the board.";
     serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
     applyEntitlementUI(null);
     toggleAuthenticatedUI(false);
@@ -144,16 +144,16 @@ async function applyBootstrapState(state) {
   appearOnlineInput.checked = state.preferences.appearOnline;
   allowSurpriseInput.checked = state.preferences.allowSurprise;
   accountTitle.textContent = state.user.displayName;
-  accountSubtitle.textContent = state.user.email || "Drawing Office hesabi baglandi.";
+  accountSubtitle.textContent = state.user.email || "Your Drawing Office account is connected.";
   accountAvatar.textContent = avatarFromName(state.user.displayName);
   accountStatePill.textContent = state.preferences.extensionEnabled
-    ? (state.preferences.appearOnline ? "Online" : "Gizli")
-    : "Pasif";
+    ? (state.preferences.appearOnline ? "Online" : "Hidden")
+    : "Inactive";
   accountStatePill.style.background = state.preferences.extensionEnabled
     ? (state.preferences.appearOnline ? "var(--success)" : "var(--blue)")
     : "#f3e5d5";
   applyEntitlementUI(state.entitlement);
-  statusText.textContent = `${state.friends.length} arkadas, ${state.incomingRequests.length} gelen istek hazir.`;
+  statusText.textContent = `${state.friends.length} friends and ${state.incomingRequests.length} incoming requests are ready.`;
   toggleAuthenticatedUI(true);
 }
 
@@ -163,7 +163,7 @@ async function refreshBootstrapState() {
     await applyBootstrapState(state);
   } catch (error) {
     console.error(error);
-    statusText.textContent = error.message || "Hesap durumu yuklenemedi.";
+    statusText.textContent = error.message || "Account state could not be loaded.";
     toggleAuthenticatedUI(false);
   }
 }
@@ -182,7 +182,7 @@ async function updatePreferenceState() {
     await applyBootstrapState(state);
   } catch (error) {
     console.error(error);
-    statusText.textContent = error.message || "Tercihler kaydedilemedi.";
+    statusText.textContent = error.message || "Preferences could not be saved.";
   }
 }
 
@@ -194,7 +194,7 @@ async function updateLocalNotificationPreference() {
 }
 
 signInButton.addEventListener("click", async () => {
-  statusText.textContent = "Google oturumu aciliyor...";
+  statusText.textContent = "Opening Google sign-in...";
   signInButton.disabled = true;
 
   try {
@@ -202,7 +202,7 @@ signInButton.addEventListener("click", async () => {
     await refreshBootstrapState();
   } catch (error) {
     console.error(error);
-    statusText.textContent = error.message || "Google girisi basarisiz oldu.";
+    statusText.textContent = error.message || "Google sign-in failed.";
   } finally {
     signInButton.disabled = false;
   }
@@ -216,7 +216,7 @@ signOutButton.addEventListener("click", async () => {
     await applyBootstrapState(null);
   } catch (error) {
     console.error(error);
-    statusText.textContent = error.message || "Cikis yapilamadi.";
+    statusText.textContent = error.message || "Sign out failed.";
   } finally {
     signOutButton.disabled = false;
   }
@@ -226,7 +226,7 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (!currentState) {
-    statusText.textContent = "Once Google ile giris yap.";
+    statusText.textContent = "Sign in with Google first.";
     return;
   }
 
@@ -241,7 +241,7 @@ form.addEventListener("submit", async (event) => {
 
 openBoardButton.addEventListener("click", async () => {
   if (!currentState) {
-    statusText.textContent = "Once Google ile giris yap.";
+    statusText.textContent = "Sign in with Google first.";
     return;
   }
 
@@ -250,7 +250,7 @@ openBoardButton.addEventListener("click", async () => {
 
 openWithMessageButton.addEventListener("click", async () => {
   if (!currentState) {
-    statusText.textContent = "Once Google ile giris yap.";
+    statusText.textContent = "Sign in with Google first.";
     return;
   }
 
@@ -258,7 +258,7 @@ openWithMessageButton.addEventListener("click", async () => {
   await openBoard(text ? {
     type: "message",
     text,
-    label: "Hizli mesaj",
+    label: "Quick message",
   } : null);
 });
 
@@ -269,12 +269,12 @@ upgradeButton.addEventListener("click", () => {
 for (const button of effectShortcutButtons) {
   button.addEventListener("click", async () => {
     if (!currentState) {
-      statusText.textContent = "Once Google ile giris yap.";
+      statusText.textContent = "Sign in with Google first.";
       return;
     }
 
     if (button.dataset.pro === "true" && !currentState.entitlement?.isPro) {
-      statusText.textContent = "Bu efekt Pro uyelere acik. Planlari gorebilirsin.";
+      statusText.textContent = "This effect is available to Pro members. You can view the plans.";
       await openPaywall();
       return;
     }

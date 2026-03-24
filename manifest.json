@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sync Sketch Party",
   "version": "0.1.0",
-  "description": "Iki kullanici arasinda canli cizim ve sohbet deneyimi sunan Chrome extension.",
+  "description": "A Chrome extension for live drawing, playful effects, and chat between friends.",
   "permissions": [
     "identity",
     "storage",

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sync Sketch Party Dashboard</title>
+    <title>Drawing Office Dashboard</title>
     <link rel="stylesheet" href="dashboard.css" />
   </head>
   <body>
@@ -11,53 +11,53 @@
       <aside class="friends-panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Sync Sketch Party</p>
-            <h1 id="profileName">Profil yukleniyor...</h1>
-            <p id="profileMeta" class="subtle">Sunucuya baglaniyor...</p>
+            <p class="eyebrow">Drawing Office</p>
+            <h1 id="profileName">Loading profile...</h1>
+            <p id="profileMeta" class="subtle">Connecting to server...</p>
           </div>
-          <div id="globalStatus" class="presence">Baglaniyor</div>
+          <div id="globalStatus" class="presence">Connecting</div>
         </div>
 
         <section class="sync-card">
           <div>
-            <p class="eyebrow">Sync kodun</p>
+            <p class="eyebrow">Your sync code</p>
             <strong id="syncCode">-</strong>
           </div>
-          <button id="copySyncCode" class="ghost">Kopyala</button>
+          <button id="copySyncCode" class="ghost">Copy</button>
         </section>
 
         <section class="membership-card">
           <div>
             <p class="eyebrow">Plan</p>
-            <strong id="membershipTitle">Plan yukleniyor...</strong>
-            <p id="membershipDetail" class="subtle">Uyelik ayrintilari hesapla birlikte gelecek.</p>
+            <strong id="membershipTitle">Loading plan...</strong>
+            <p id="membershipDetail" class="subtle">Membership details will load with your account.</p>
           </div>
           <div class="membership-actions">
             <span id="membershipPill" class="membership-pill">...</span>
-            <button id="upgradePlan" class="ghost">Pro'ya Gec</button>
+            <button id="upgradePlan" class="ghost">Upgrade to Pro</button>
           </div>
         </section>
 
         <form id="profileForm" class="pair-form profile-form">
           <label>
-            <span>Profil adin</span>
+            <span>Your profile name</span>
             <input id="profileNameInput" type="text" maxlength="32" placeholder="Burak" />
           </label>
-          <button type="submit">Profili Guncelle</button>
+          <button type="submit">Update profile</button>
         </form>
 
         <form id="pairForm" class="pair-form">
           <label>
-            <span>Bir kullanici ile sync ol</span>
-            <input id="pairCodeInput" type="text" placeholder="Arkadasinin sync kodu" required />
+            <span>Sync with a user</span>
+            <input id="pairCodeInput" type="text" placeholder="A friend's sync code" required />
           </label>
-          <button type="submit">Sync et</button>
+          <button type="submit">Sync</button>
         </form>
 
         <section class="friends-list-shell">
           <div class="section-head">
-            <h2>Arkadas listesi</h2>
-            <span id="friendCount" class="subtle">0 kisi</span>
+            <h2>Friends</h2>
+            <span id="friendCount" class="subtle">0 people</span>
           </div>
           <div id="requestList" class="request-list"></div>
           <div id="friendsList" class="friends-list"></div>
@@ -67,45 +67,45 @@
       <section class="stage">
         <header class="topbar">
           <div>
-            <p class="eyebrow">Aktif oturum</p>
-            <h2 id="sessionTitle">Bir arkadas sec</h2>
-            <p id="sessionModeText" class="subtle">Cizim baslatmak icin soldan bir kisi sec.</p>
+            <p class="eyebrow">Active session</p>
+            <h2 id="sessionTitle">Choose a friend</h2>
+            <p id="sessionModeText" class="subtle">Pick someone from the left to start drawing.</p>
           </div>
 
           <div class="toolbar">
             <label class="tool tool-stack">
-              <span>Efekt</span>
+              <span>Effect</span>
               <select id="effectPicker">
-                <option value="draw">Serbest cizim</option>
-                <option value="crack">Kirik ekran</option>
-                <option value="scribble">Karalama</option>
-                <option value="drip">Damlayan boya</option>
-                <option value="zap" data-pro="true">Yildirim • Pro</option>
-                <option value="heartburst" data-pro="true">Kalp patlamasi • Pro</option>
-                <option value="bullet" data-pro="true">Kursun izi • Pro</option>
+                <option value="draw">Freehand</option>
+                <option value="crack">Broken screen</option>
+                <option value="scribble">Scribble</option>
+                <option value="drip">Paint drip</option>
+                <option value="zap" data-pro="true">Lightning • Pro</option>
+                <option value="heartburst" data-pro="true">Heart burst • Pro</option>
+                <option value="bullet" data-pro="true">Bullet impact • Pro</option>
                 <option value="stickman" data-pro="true">Stickman • Pro</option>
               </select>
             </label>
 
             <label class="tool">
-              <span>Renk</span>
+              <span>Color</span>
               <input id="colorPicker" type="color" value="#232018" />
             </label>
 
             <label class="tool">
-              <span>Kalem</span>
+              <span>Brush</span>
               <input id="brushSize" type="range" min="1" max="24" value="4" />
             </label>
 
-            <button id="clearCanvas" class="ghost">Temizle</button>
-            <button id="sendDraft" class="ghost">Taslagi Gonder</button>
-            <button id="leaveSession" class="ghost">Oturumu Bitir</button>
+            <button id="clearCanvas" class="ghost">Clear</button>
+            <button id="sendDraft" class="ghost">Send draft</button>
+            <button id="leaveSession" class="ghost">End session</button>
           </div>
         </header>
 
         <section class="canvas-shell">
           <canvas id="drawCanvas"></canvas>
-          <div id="statusPill" class="status-pill">Baglanti kuruluyor...</div>
+          <div id="statusPill" class="status-pill">Connecting...</div>
           <div id="drawGuard" class="draw-guard hidden"></div>
         </section>
       </section>
@@ -113,17 +113,17 @@
       <aside class="chat-panel">
         <div class="chat-head">
           <div>
-            <p class="eyebrow">Canli sohbet</p>
-            <h2>Mesajlasma</h2>
+            <p class="eyebrow">Live chat</p>
+            <h2>Messages</h2>
           </div>
-          <div id="presence" class="presence">Arkadas bekleniyor</div>
+          <div id="presence" class="presence">Waiting for a friend</div>
         </div>
 
         <div id="messages" class="messages"></div>
 
         <form id="chatForm" class="chat-form">
-          <input id="chatInput" type="text" maxlength="240" placeholder="Bir seyler yaz..." required />
-          <button type="submit">Gonder</button>
+          <input id="chatInput" type="text" maxlength="240" placeholder="Type something..." required />
+          <button type="submit">Send</button>
         </form>
       </aside>
     </main>

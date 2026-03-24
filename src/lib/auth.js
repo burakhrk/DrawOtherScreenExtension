@@ -8,7 +8,7 @@ function getDisplayName(user, ownProfile = null) {
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
     user?.email ||
-    "Misafir"
+    "Guest"
   );
 }
 
@@ -33,13 +33,13 @@ export async function signInWithGoogle() {
     error = response.error;
   } catch (oauthError) {
     throw new Error(
-      `Google OAuth baslatilamadi. Supabase allowlist icinde su callback olmali: ${redirectTo}. ${oauthError?.message || ""}`.trim(),
+      `Google OAuth could not start. This callback must be allowlisted in Supabase: ${redirectTo}. ${oauthError?.message || ""}`.trim(),
     );
   }
 
   if (error) {
     throw new Error(
-      `${error.message || "Google OAuth baslatilamadi."} Callback: ${redirectTo}`,
+      `${error.message || "Google OAuth could not start."} Callback: ${redirectTo}`,
     );
   }
 
@@ -51,7 +51,7 @@ export async function signInWithGoogle() {
     });
   } catch (launchError) {
     throw new Error(
-      `Google login popup'u tamamlanamadi. Yeni extension id icin redirect whitelist'i guncellemen gerekebilir. Callback: ${redirectTo}. ${launchError?.message || ""}`.trim(),
+      `Google login popup could not complete. You may need to update the redirect allowlist for the new extension ID. Callback: ${redirectTo}. ${launchError?.message || ""}`.trim(),
     );
   }
 
@@ -64,12 +64,12 @@ export async function signInWithGoogle() {
   }
 
   if (!authCode) {
-    throw new Error(`Google girisi tamamlanamadi. Callback: ${redirectTo}`);
+    throw new Error(`Google sign-in could not be completed. Callback: ${redirectTo}`);
   }
 
   const exchange = await supabase.auth.exchangeCodeForSession(authCode);
   if (exchange.error) {
-    throw new Error(`${exchange.error.message || "Session exchange basarisiz."} Callback: ${redirectTo}`);
+    throw new Error(`${exchange.error.message || "Session exchange failed."} Callback: ${redirectTo}`);
   }
 
   await track("Signed In", {

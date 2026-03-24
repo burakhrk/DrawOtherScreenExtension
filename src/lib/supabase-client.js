@@ -10,7 +10,7 @@ const supabaseGlobal =
 const createClient = supabaseGlobal?.createClient;
 
 if (!createClient) {
-  throw new Error("Supabase istemcisi yuklenemedi. Vendor scripti veya popup HTML baglantisini kontrol et.");
+  throw new Error("Supabase client could not be loaded. Check the vendor script and popup HTML reference.");
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

@@ -72,31 +72,31 @@ export function resolveEntitlement(user) {
 export function getEntitlementBadge(entitlement) {
   if (!entitlement) {
     return {
-      title: "Plan bilinmiyor",
-      detail: "Hesap bilgisi yuklenince plan durumu gorunur.",
-      cta: "Planlari gor",
+      title: "Plan unknown",
+      detail: "Your membership state will appear once account data is loaded.",
+      cta: "View plans",
     };
   }
 
   if (entitlement.plan === "pro") {
     return {
-      title: "Pro aktif",
-      detail: "Tum premium cizim modlari ve gelismis efektler acik.",
-      cta: "Planlari gor",
+      title: "Pro active",
+      detail: "All premium drawing modes and advanced effects are unlocked.",
+      cta: "View plans",
     };
   }
 
   if (entitlement.plan === "pro-trial") {
     return {
-      title: "Pro deneme acik",
-      detail: `${entitlement.hoursRemaining} saat kadar daha premium ozellikler acik kalacak.`,
-      cta: "Pro'ya gec",
+      title: "Pro trial active",
+      detail: `${entitlement.hoursRemaining} more hours of premium features are still unlocked.`,
+      cta: "Upgrade to Pro",
     };
   }
 
   return {
     title: "Free plan",
-    detail: "Canli ortak cizim ve gelismis efektler Pro ile acilir.",
-    cta: "Pro'ya gec",
+    detail: "Live shared drawing and advanced effects unlock with Pro.",
+    cta: "Upgrade to Pro",
   };
 }
