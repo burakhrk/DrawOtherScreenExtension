@@ -2,15 +2,32 @@
 
 Tek seferlik sync ile arkadas listesi olusturan, online durum gosteren ve iki farkli cizim modu sunan Chrome extension + WebSocket relay prototipi.
 
-## Neler var
+## Proje Yapisi
+
+Bu repo artik starter kit'teki ayri katman mantigina daha yakin bir yapi kullanir:
+
+- `src/background/`: service worker ve tab mesaj kopruleri
+- `src/content/`: aktif sekmeye surpriz efekt basan content script
+- `src/dashboard/`: ana board ekraninin HTML, CSS ve JS dosyalari
+- `src/popup/`: popup giris ve hizli baslatma yuzeyi
+- `src/lib/`: Supabase auth, social client, analytics ve ortak yardimci katmanlar
+- `src/types/`: ileride tip dosyalari icin ayrilmis alan
+- `relay/`: deploy edilen WebSocket relay sunucusu ve lokal veri dosyasi
+- `public/icons/`: extension ikon kaynaklari icin ayrilmis alan
+- `scripts/`: repo-ozel yardimci scriptler icin ayrilmis alan
+- `store-assets/`: store screenshot, promo ve video ciktilari icin ayrilmis alan
+- `docs/`: urun ve analytics notlari
+- `extension-marketing-kit/`: ileride screenshot ve promo video uretmek icin reusable scriptler
+
+## Onemli Dosyalar
 
 - `manifest.json`: Chrome extension tanimi
-- `popup.html`: Profil bilgisi ve sunucu adresi girilen baslangic paneli
-- `board.html`: Arkadas listesi, sync alani, cizim tuvali ve sohbet ekrani
-- `server.js`: Kullanici profili, arkadas eslestirme, online durum ve oturum yonetimi
-- `server-data.json`: Arkadaslik bilgilerinin basit kalici kaydi
-- `extension-marketing-kit/`: Ileride screenshot ve promo video uretmek icin reusable scriptler
-- `docs/ANALYTICS_ROADMAP.md`: Analytics eventlerini ne zaman ve nasil genisletecegimize dair notlar
+- `src/popup/popup.html`: popup UI
+- `src/dashboard/dashboard.html`: arkadas listesi, draft/cizim ve sohbet ekrani
+- `src/lib/`: auth, Supabase client ve social wrapper
+- `relay/server.js`: JWT dogrulamali realtime relay
+- `relay/server-data.json`: lokal fallback veri dosyasi
+- `docs/ANALYTICS_ROADMAP.md`: analytics eventlerini ne zaman ve nasil genisletecegimize dair notlar
 
 ## Yerel Kurulum
 
@@ -31,7 +48,7 @@ Tek seferlik sync ile arkadas listesi olusturan, online durum gosteren ve iki fa
 
 Bu proje artik internetten erisilebilen bir sunucuya deploy edilmeye uygun.
 
-1. `server.js` tek portta hem HTTP hem WebSocket dinler.
+1. `relay/server.js` tek portta hem HTTP hem WebSocket dinler.
 2. Health check icin `GET /health` endpoint'i vardir.
 3. Extension'a `https://senin-domainin.com` yazman yeterli; istemci bunu otomatik olarak `wss://` baglantisina cevirir.
 
@@ -50,7 +67,7 @@ Sunucu deploy olduktan sonra extension icinde sunucu adresi olarak ornegin `http
 
 ## Hizli Test: Render
 
-Arkadasinla farkli bilgisayarlardan en hizli test icin Render uzerinden mevcut `server.js` sunucusunu yayinlayabilirsin.
+Arkadasinla farkli bilgisayarlardan en hizli test icin Render uzerinden mevcut `relay/server.js` sunucusunu yayinlayabilirsin.
 
 1. Bu repo'yu GitHub'a push et.
 2. Render'da `New +` -> `Blueprint` sec.
@@ -63,13 +80,12 @@ Not:
 
 - Render resmi dokumanina gore WebSocket baglantilarini public internetten kabul ediyor. [WebSockets on Render](https://render.com/docs/websocket)
 - Render web service'leri public URL ve TLS ile gelir; uygulama `PORT` env'ine baglanmalidir. Bizim sunucu bunu zaten yapiyor. [Web Services](https://render.com/docs/web-services)
-- Su an `server-data.json` dosyasi varsayilan olarak lokal diske yaziliyor. Render dokumanina gore kalici disk baglanmazsa dosya sistemi gecicidir; yani deploy/restart sonrasinda arkadaslik verisi silinebilir. Hemen test etmek icin sorun degil. [Persistent Disks](https://render.com/docs/disks)
+- Su an `relay/server-data.json` dosyasi varsayilan olarak lokal diske yaziliyor. Render dokumanina gore kalici disk baglanmazsa dosya sistemi gecicidir; yani deploy/restart sonrasinda arkadaslik verisi silinebilir. Hemen test etmek icin sorun degil. [Persistent Disks](https://render.com/docs/disks)
 
 ## Notlar
 
 - Su an cizimler sadece aktif oturum icinde canli aktarilir; gecmis cizimi yeni oturuma tasima yok.
-- Arkadaslik bilgisi varsayilan olarak `server-data.json` icinde tutulur. Uretim ortaminda kalici disk yoksa bu veri sifirlanabilir.
-- Her kullanici icin ilk kayitta yerel bir cihaz anahtari olusturulur. Ayni `userId` baska bir cihaz anahtariyla taklit edilmeye calisilirsa sunucu baglantiyi reddeder.
+- Arkadaslik bilgisi varsayilan olarak `relay/server-data.json` icinde tutulur. Uretim ortaminda kalici disk yoksa bu veri sifirlanabilir.
+- Kimlik artik cihaz anahtarina degil Supabase hesabina dayanir; relay kayit sirasinda access token dogrulamasi yapar.
 - Kisa baglanti kopmalarinda oturum aninda dusmez; varsayilan olarak `8` saniyelik geri baglanma penceresi vardir.
-- Gercek sosyal urun icin bir veritabani eklemek iyi olur. Bu prototip su an tek sunucu uzerinde calisan MVP yapisinda.
-- Kimlik korumasi su an cihaz anahtari tabanli hafif bir seviyede. Gercek sosyal urun icin Supabase Auth veya benzeri tam kimlik dogrulama eklenmeli.
+- Gercek sosyal urun icin sosyal graph ve tercihlerin kalici kaynagi Supabase olmalidir; relay sadece realtime tasiyici gibi dusunulmelidir.

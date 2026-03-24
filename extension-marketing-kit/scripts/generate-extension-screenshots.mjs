@@ -310,7 +310,7 @@ async function main() {
     const extensionOrigin = `chrome-extension://${extensionId}`;
 
     const dashboardPage = await context.newPage();
-    await dashboardPage.goto(`${extensionOrigin}/dashboard.html`);
+  await dashboardPage.goto(`${extensionOrigin}/src/dashboard/dashboard.html`);
     await dashboardPage.waitForLoadState('domcontentloaded');
 
     await dashboardPage.evaluate(async (notes) => {

@@ -13,11 +13,11 @@
     "https://euzeprutflhfavzxuwfs.supabase.co/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background/background.js"
   },
   "action": {
     "default_title": "Sync Sketch Party",
-    "default_popup": "popup.html"
+    "default_popup": "src/popup/popup.html"
   },
   "content_scripts": [
     {
@@ -25,7 +25,7 @@
         "<all_urls>"
       ],
       "js": [
-        "overlay.js"
+        "src/content/overlay.js"
       ],
       "run_at": "document_idle"
     }
@@ -33,9 +33,9 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "board.html",
-        "board.css",
-        "board.js"
+        "src/dashboard/dashboard.html",
+        "src/dashboard/dashboard.css",
+        "src/dashboard/dashboard.js"
       ],
       "matches": [
         "<all_urls>"

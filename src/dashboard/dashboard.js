@@ -1,6 +1,6 @@
-import { track } from "./lib/analytics.js";
-import { QUICK_ACTION_KEY } from "./lib/constants.js";
-import { getAccessToken, getCurrentUser } from "./lib/auth.js";
+import { track } from "../lib/analytics.js";
+import { QUICK_ACTION_KEY } from "../lib/constants.js";
+import { getAccessToken, getCurrentUser } from "../lib/auth.js";
 import {
   acceptFriendRequest,
   bootstrap,
@@ -10,7 +10,7 @@ import {
   sendFriendRequest,
   startSession as startSocialSession,
   updateProfile,
-} from "./lib/drawing-office-social-client.js";
+} from "../lib/drawing-office-social-client.js";
 
 const params = new URLSearchParams(window.location.search);
 const rawServerUrl = params.get("serverUrl") || "https://sync-sketch-party.onrender.com";

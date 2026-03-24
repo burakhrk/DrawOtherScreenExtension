@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "Gercek zamanli cizim ve sohbet icin deploy edilebilir WebSocket relay sunucusu",
-  "main": "server.js",
+  "main": "relay/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node relay/server.js",
+    "check:relay": "node --check relay/server.js",
+    "check:popup": "node --check src/popup/popup.js",
+    "check:dashboard": "node --check src/dashboard/dashboard.js",
+    "check:extension": "node --check src/background/background.js && node --check src/content/overlay.js && node --check src/lib/auth.js && node --check src/lib/drawing-office-social-client.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.0",

@@ -406,7 +406,7 @@ async function createClipRecorder(name, fn, origin) {
 }
 
 async function generateHighlightClip({ page, extensionOrigin, origin }) {
-  await page.goto(`${extensionOrigin}/dashboard.html`);
+  await page.goto(`${extensionOrigin}/src/dashboard/dashboard.html`);
   await page.waitForLoadState('domcontentloaded');
   await seedExtensionState(page);
   await page.waitForTimeout(500);
@@ -434,7 +434,7 @@ async function generateHighlightClip({ page, extensionOrigin, origin }) {
 }
 
 async function generateCaptureOverlayClip({ page, extensionOrigin, origin }) {
-  await page.goto(`${extensionOrigin}/dashboard.html`);
+  await page.goto(`${extensionOrigin}/src/dashboard/dashboard.html`);
   await page.waitForLoadState('domcontentloaded');
   await seedExtensionState(page);
   await page.waitForTimeout(500);
@@ -467,7 +467,7 @@ async function generateCaptureOverlayClip({ page, extensionOrigin, origin }) {
 }
 
 async function generateMarketingKanbanClip({ page, extensionOrigin }) {
-  await page.goto(`${extensionOrigin}/dashboard.html`);
+  await page.goto(`${extensionOrigin}/src/dashboard/dashboard.html`);
   await page.waitForLoadState('domcontentloaded');
   await seedExtensionState(page);
   await page.reload();
@@ -485,7 +485,7 @@ async function generateMarketingKanbanClip({ page, extensionOrigin }) {
 }
 
 async function generateAiChatClip({ page, extensionOrigin }) {
-  await page.goto(`${extensionOrigin}/dashboard.html`);
+  await page.goto(`${extensionOrigin}/src/dashboard/dashboard.html`);
   await page.waitForLoadState('domcontentloaded');
   await seedExtensionState(page);
   await page.reload();
@@ -500,7 +500,7 @@ async function generateAiChatClip({ page, extensionOrigin }) {
 }
 
 async function generateFolderSuggestionClip({ page, extensionOrigin, origin }) {
-  await page.goto(`${extensionOrigin}/dashboard.html`);
+  await page.goto(`${extensionOrigin}/src/dashboard/dashboard.html`);
   await page.waitForLoadState('domcontentloaded');
   await seedExtensionState(page);
   await page.waitForTimeout(500);
@@ -529,7 +529,7 @@ async function generateFolderSuggestionClip({ page, extensionOrigin, origin }) {
 }
 
 async function generateChatReferenceClip({ page, extensionOrigin }) {
-  await page.goto(`${extensionOrigin}/dashboard.html`);
+  await page.goto(`${extensionOrigin}/src/dashboard/dashboard.html`);
   await page.waitForLoadState('domcontentloaded');
   await seedExtensionState(page);
   await page.reload();
