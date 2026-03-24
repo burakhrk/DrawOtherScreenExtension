@@ -36,7 +36,7 @@ const openBoardButton = document.getElementById("openBoardButton");
 let currentState = null;
 
 function avatarFromName(name) {
-  const safe = (name || "DO").trim();
+  const safe = (name || "SP").trim();
   const parts = safe.split(/\s+/).filter(Boolean).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "SP";
 }
@@ -306,3 +306,4 @@ friendOnlineNotificationsInput.addEventListener("change", () => {
 });
 
 void refreshBootstrapState();
+
