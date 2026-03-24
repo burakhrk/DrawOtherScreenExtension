@@ -8,14 +8,13 @@
   </head>
   <body>
     <main class="popup-shell">
-      <section class="hero">
-        <div>
+      <section class="hero-card">
+        <img class="hero-icon" src="../../public/icons/sketch-party-48.png" alt="Sketch Party" />
+        <div class="hero-copy">
           <p class="eyebrow">Sketch Party</p>
-          <h1>Pick a friend and prepare a quick message or surprise.</h1>
+          <h1>Draw, surprise, and hang out.</h1>
+          <p class="subcopy">Sign in once, then jump straight into your board, a quick message, or a fast effect.</p>
         </div>
-        <p class="subcopy">
-          Sign in with Google to restore your profile, friends, and app preferences. Let this popup be your fast launch point.
-        </p>
       </section>
 
       <section class="account-card">
@@ -26,67 +25,64 @@
               <h2 id="accountTitle">Waiting for Google sign-in</h2>
               <span id="accountStatePill" class="state-pill">Not ready</span>
             </div>
-            <p id="accountSubtitle" class="subcopy">Your social state will load from your account after sign-in.</p>
+            <p id="accountSubtitle" class="subcopy">Your account, friends, and preferences will load after sign-in.</p>
           </div>
         </div>
         <div class="account-actions">
-          <button id="signInButton" type="button">Sign in with Google</button>
-          <button id="signOutButton" type="button" class="ghost danger hidden">Sign out</button>
+          <button id="signInButton" type="button" class="primary-button">Sign in with Google</button>
+          <button id="signOutButton" type="button" class="ghost-button hidden">Sign out</button>
         </div>
       </section>
 
-      <section class="plan-card">
-        <div class="plan-copy">
-          <div class="plan-row">
+      <section class="launch-card">
+        <div class="launch-head">
+          <div>
+            <p class="eyebrow">Quick start</p>
+            <h2>Open your board or prep something fast</h2>
+          </div>
+          <button id="openBoardButton" type="button" class="primary-button wide-button">Open board</button>
+        </div>
+
+        <div class="quick-stack">
+          <label class="field">
+            <span>Quick message</span>
+            <div class="inline-field">
+              <input id="quickMessage" type="text" maxlength="160" placeholder="Reply to this, look at this, try this..." />
+              <button id="openWithMessage" class="ghost-button" type="button">Send draft</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Quick effect</span>
+            <div class="inline-field">
+              <select id="quickEffect">
+                <option value="">Choose an effect</option>
+                <option value="crack">Broken screen</option>
+                <option value="drip">Paint drip</option>
+                <option value="bullet" data-pro="true">Bullet impact - Pro</option>
+                <option value="zap" data-pro="true">Lightning - Pro</option>
+                <option value="heartburst" data-pro="true">Heart burst - Pro</option>
+                <option value="stickman" data-pro="true">Stickman - Pro</option>
+              </select>
+              <button id="sendEffectButton" class="ghost-button" type="button">Send effect</button>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <section class="membership-card">
+        <div>
+          <div class="membership-row">
             <p class="eyebrow">Membership</p>
             <span id="planStatePill" class="plan-pill">Free</span>
           </div>
           <h2 id="planTitle">Your first 48 hours are a Pro trial</h2>
-          <p id="planDetail" class="subcopy">After that, some advanced features will stay locked behind Pro.</p>
+          <p id="planDetail" class="subcopy">After that, advanced effects and live mode stay behind Pro.</p>
         </div>
-        <button id="upgradeButton" type="button" class="ghost">View plans</button>
+        <button id="upgradeButton" type="button" class="ghost-button">View plans</button>
       </section>
 
-      <section class="launch-card">
-        <div class="section-top">
-          <div>
-            <p class="eyebrow">Quick launch</p>
-            <h2>Choose your next step at a glance</h2>
-          </div>
-          <button id="openBoardButton" type="button" class="primary-wide">Open board</button>
-        </div>
-
-        <div class="quick-grid">
-          <article class="quick-panel">
-            <div class="quick-header">
-              <strong>Quick message</strong>
-              <span class="mini-hint">Opens as a draft</span>
-            </div>
-            <label class="quick-field">
-              <span>Message</span>
-              <input id="quickMessage" type="text" maxlength="160" placeholder="Look at this, try this, reply to this..." />
-            </label>
-            <button id="openWithMessage" class="secondary-button" type="button">Open with message draft</button>
-          </article>
-
-          <article class="quick-panel">
-            <div class="quick-header">
-              <strong>Prepare an effect</strong>
-              <span class="mini-hint">Opens as a board draft</span>
-            </div>
-            <div class="effects-shortcuts">
-              <button class="effect-chip" data-effect="crack" data-color="#f4f0ea" type="button">Broken screen</button>
-              <button class="effect-chip is-pro-chip" data-effect="bullet" data-color="#d8d2ca" data-pro="true" type="button">Bullet impact - Pro</button>
-              <button class="effect-chip is-pro-chip" data-effect="zap" data-color="#f8f2b3" data-pro="true" type="button">Lightning - Pro</button>
-              <button class="effect-chip is-pro-chip" data-effect="heartburst" data-color="#ff5b7c" data-pro="true" type="button">Heart burst - Pro</button>
-              <button class="effect-chip" data-effect="drip" data-color="#cb3046" type="button">Paint drip</button>
-              <button class="effect-chip is-pro-chip" data-effect="stickman" data-color="#232018" data-pro="true" type="button">Stickman - Pro</button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <form id="session-form" class="session-form">
+      <form id="session-form" class="settings-form">
         <details class="settings-shell">
           <summary>
             <span>
@@ -97,7 +93,7 @@
           </summary>
 
           <div class="settings-body">
-            <label>
+            <label class="field">
               <span>Server URL</span>
               <input id="serverUrl" name="serverUrl" type="url" placeholder="https://sync-sketch-party.onrender.com" required />
             </label>
@@ -139,16 +135,10 @@
         </details>
       </form>
 
-      <p id="statusText" class="hint">
-        Once you sign in, Sketch Party loads your social state from your account.
-      </p>
+      <p id="statusText" class="hint">Once you sign in, Sketch Party loads your social state from your account.</p>
     </main>
 
     <script src="../../public/vendor/supabase.js"></script>
     <script src="popup.js" type="module"></script>
   </body>
 </html>
-
-
-
-

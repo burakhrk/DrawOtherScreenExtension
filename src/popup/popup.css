@@ -1,16 +1,16 @@
 :root {
   color-scheme: light;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  --bg: #f2eee7;
+  --bg: #f4efe8;
   --panel: rgba(255, 252, 247, 0.96);
-  --panel-soft: rgba(255, 255, 255, 0.76);
-  --text: #232018;
-  --muted: #6a6358;
-  --accent: #d55d3f;
-  --accent-dark: #ad452e;
+  --panel-soft: rgba(255, 255, 255, 0.8);
   --line: rgba(35, 32, 24, 0.1);
-  --blue: #dce8ff;
+  --text: #231f1a;
+  --muted: #6e665d;
+  --accent: #e16846;
+  --accent-dark: #be4d2f;
   --success: #dff5e4;
+  --blue: #dce8ff;
 }
 
 * {
@@ -19,142 +19,139 @@
 
 body {
   margin: 0;
-  min-width: 410px;
+  min-width: 390px;
   background:
-    radial-gradient(circle at top left, rgba(213, 93, 63, 0.18), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(54, 108, 255, 0.12), transparent 30%),
+    radial-gradient(circle at top left, rgba(225, 104, 70, 0.16), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(61, 109, 255, 0.08), transparent 30%),
     var(--bg);
   color: var(--text);
 }
 
 .popup-shell {
-  padding: 18px;
+  padding: 16px;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
-.hero,
+.hero-card,
 .account-card,
-.plan-card,
 .launch-card,
+.membership-card,
 .settings-shell {
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--panel);
-  box-shadow: 0 14px 32px rgba(56, 37, 22, 0.07);
+  box-shadow: 0 14px 30px rgba(59, 37, 18, 0.06);
 }
 
-.hero {
-  padding: 18px;
+.hero-card {
+  padding: 16px;
   display: grid;
-  gap: 10px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.hero-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
 }
 
 .eyebrow {
-  margin: 0 0 8px;
-  font-size: 12px;
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
-h1 {
+h1,
+h2 {
   margin: 0;
-  font-size: 27px;
-  line-height: 1.03;
+}
+
+h1 {
+  font-size: 25px;
+  line-height: 1.02;
 }
 
 h2 {
-  margin: 0;
-  font-size: 20px;
-  line-height: 1.1;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.subcopy,
+.hint,
+.toggle-row p,
+.settings-shell small {
+  color: var(--muted);
 }
 
 .subcopy,
 .hint {
-  color: var(--muted);
-}
-
-.subcopy {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
-.account-card {
+.account-card,
+.launch-card,
+.membership-card {
   padding: 16px;
+}
+
+.account-card,
+.launch-card {
   display: grid;
   gap: 14px;
-}
-
-.plan-card {
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.plan-copy {
-  display: grid;
-  gap: 6px;
-}
-
-.plan-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.plan-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  background: #f3e5d5;
 }
 
 .account-main {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
 }
 
 .account-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #201d17, #4b3d31);
-  color: white;
-  font-size: 18px;
+  background: linear-gradient(135deg, #211d18, #4e4032);
+  color: #fff;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
 
-.account-row {
+.account-row,
+.membership-row,
+.launch-head,
+.account-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .state-pill,
-.summary-pill,
-.mini-hint {
+.plan-pill,
+.summary-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
-.state-pill {
+.state-pill,
+.plan-pill {
   padding: 7px 10px;
   background: #f3e5d5;
 }
@@ -164,143 +161,66 @@ h2 {
   background: var(--blue);
 }
 
-.mini-hint {
-  padding: 5px 8px;
-  background: rgba(35, 32, 24, 0.06);
-  color: var(--muted);
-}
-
-.account-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.account-actions button,
-.primary-wide,
-.ghost {
+.primary-button,
+.ghost-button {
   border: none;
-  border-radius: 999px;
-  padding: 11px 16px;
+  border-radius: 14px;
+  padding: 11px 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
 
-.account-actions button,
-.primary-wide {
-  background: linear-gradient(135deg, var(--accent), #eb7f47);
+.primary-button {
+  background: linear-gradient(135deg, var(--accent), #f0824d);
   color: white;
 }
 
-.ghost {
-  background: #f3e5d5;
+.ghost-button {
+  background: #f5e7d7;
   color: var(--text);
 }
 
-.danger {
-  background: #f9dfdd;
+.wide-button {
+  min-width: 124px;
 }
 
-.launch-card {
-  padding: 16px;
+.quick-stack,
+.settings-body,
+.settings-card {
   display: grid;
-  gap: 14px;
-}
-
-.section-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.quick-grid {
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 12px;
-}
-
-.quick-panel {
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: var(--panel-soft);
-  display: grid;
-  gap: 12px;
-}
-
-.quick-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 10px;
 }
 
-.quick-field,
-.settings-body label {
+.field {
   display: grid;
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
 }
 
-.quick-field input,
-.settings-body input {
+.inline-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.field input,
+.field select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 11px 12px;
   font-size: 14px;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.secondary-button,
-.effect-chip {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: white;
+  background: var(--panel-soft);
   color: var(--text);
-  cursor: pointer;
-  font-weight: 700;
 }
 
-.secondary-button {
-  padding: 12px 14px;
-}
-
-.effects-shortcuts {
+.membership-card {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.effect-chip {
-  padding: 10px 12px;
-  font-size: 13px;
-}
-
-.effect-chip.is-pro-chip {
-  background: linear-gradient(135deg, #fff8ef, #fff2db);
-}
-
-.effect-chip.is-locked {
-  opacity: 0.68;
-  border-style: dashed;
-}
-
-.primary-wide.is-guarded,
-.secondary-button.is-guarded,
-.effect-chip.is-guarded {
-  opacity: 0.8;
-}
-
-.effect-chip:hover,
-.secondary-button:hover {
-  border-color: rgba(213, 93, 63, 0.42);
-  background: #fff7f1;
-}
-
-.session-form.is-disabled {
-  opacity: 0.78;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .settings-shell {
@@ -324,24 +244,19 @@ h2 {
 .settings-shell small {
   display: block;
   margin-top: 4px;
-  color: var(--muted);
   font-size: 12px;
   font-weight: 500;
 }
 
 .settings-body {
   padding: 0 16px 16px;
-  display: grid;
-  gap: 12px;
 }
 
 .settings-card {
-  display: grid;
-  gap: 10px;
   padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.74);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .toggle-row {
@@ -359,7 +274,6 @@ h2 {
 .toggle-row p {
   margin: 4px 0 0;
   font-size: 12px;
-  color: var(--muted);
   line-height: 1.35;
 }
 
@@ -368,29 +282,33 @@ h2 {
   height: 18px;
 }
 
+.settings-form.is-disabled {
+  opacity: 0.78;
+}
+
+.ghost-button.is-guarded,
+.primary-button.is-guarded {
+  opacity: 0.8;
+}
+
 .hidden {
   display: none;
 }
 
-.hint {
-  margin: 0 2px;
-  font-size: 12px;
-}
-
-@media (max-width: 520px) {
+@media (max-width: 480px) {
   body {
     min-width: 360px;
   }
 
-  .quick-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .section-top,
-  .account-row,
+  .hero-card,
+  .account-main,
+  .inline-field,
+  .launch-head,
   .account-actions,
-  .plan-card,
-  .plan-row {
+  .membership-card,
+  .account-row,
+  .membership-row {
+    grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
   }

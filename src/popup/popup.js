@@ -10,6 +10,14 @@ import { bootstrap, setPreferences } from "../lib/sketch-party-social-client.js"
 import { getEntitlementBadge } from "../lib/entitlements.js";
 
 const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
+const QUICK_EFFECTS = {
+  crack: { effect: "crack", color: "#f4f0ea", size: 6, label: "Broken screen" },
+  drip: { effect: "drip", color: "#cb3046", size: 6, label: "Paint drip" },
+  bullet: { effect: "bullet", color: "#d8d2ca", size: 6, label: "Bullet impact - Pro", pro: true },
+  zap: { effect: "zap", color: "#f8f2b3", size: 6, label: "Lightning - Pro", pro: true },
+  heartburst: { effect: "heartburst", color: "#ff5b7c", size: 6, label: "Heart burst - Pro", pro: true },
+  stickman: { effect: "stickman", color: "#232018", size: 6, label: "Stickman - Pro", pro: true },
+};
 
 const form = document.getElementById("session-form");
 const serverUrlInput = document.getElementById("serverUrl");
@@ -18,8 +26,9 @@ const appearOnlineInput = document.getElementById("appearOnline");
 const allowSurpriseInput = document.getElementById("allowSurprise");
 const friendOnlineNotificationsInput = document.getElementById("friendOnlineNotifications");
 const quickMessageInput = document.getElementById("quickMessage");
+const quickEffectSelect = document.getElementById("quickEffect");
 const openWithMessageButton = document.getElementById("openWithMessage");
-const effectShortcutButtons = Array.from(document.querySelectorAll(".effect-chip"));
+const sendEffectButton = document.getElementById("sendEffectButton");
 const accountTitle = document.getElementById("accountTitle");
 const accountSubtitle = document.getElementById("accountSubtitle");
 const accountAvatar = document.getElementById("accountAvatar");
@@ -51,20 +60,33 @@ function normalizeServerUrl(value) {
   return url.toString().replace(/\/$/, "");
 }
 
+function setGuardedState(element, guarded) {
+  element.classList.toggle("is-guarded", guarded);
+  element.setAttribute("aria-disabled", String(guarded));
+}
+
 function toggleAuthenticatedUI(isAuthenticated) {
   form.classList.toggle("is-disabled", !isAuthenticated);
-  openWithMessageButton.classList.toggle("is-guarded", !isAuthenticated);
-  openBoardButton.classList.toggle("is-guarded", !isAuthenticated);
-  openWithMessageButton.setAttribute("aria-disabled", String(!isAuthenticated));
-  openBoardButton.setAttribute("aria-disabled", String(!isAuthenticated));
-
-  for (const button of effectShortcutButtons) {
-    button.classList.toggle("is-guarded", !isAuthenticated);
-    button.setAttribute("aria-disabled", String(!isAuthenticated));
-  }
-
+  setGuardedState(openBoardButton, !isAuthenticated);
+  setGuardedState(openWithMessageButton, !isAuthenticated);
+  setGuardedState(sendEffectButton, !isAuthenticated);
+  quickEffectSelect.disabled = false;
   signInButton.classList.toggle("hidden", isAuthenticated);
   signOutButton.classList.toggle("hidden", !isAuthenticated);
+}
+
+function syncEffectEntitlementUI(entitlement) {
+  const isPro = Boolean(entitlement?.isPro);
+
+  for (const option of quickEffectSelect.options) {
+    const requiresPro = option.dataset.pro === "true";
+    option.disabled = requiresPro && !isPro;
+  }
+
+  const currentOption = quickEffectSelect.selectedOptions[0];
+  if (currentOption?.dataset.pro === "true" && !isPro) {
+    quickEffectSelect.value = "";
+  }
 }
 
 function applyEntitlementUI(entitlement) {
@@ -76,11 +98,7 @@ function applyEntitlementUI(entitlement) {
   planTitle.textContent = badge.title;
   planDetail.textContent = badge.detail;
   upgradeButton.textContent = badge.cta;
-
-  for (const button of effectShortcutButtons) {
-    const requiresPro = button.dataset.pro === "true";
-    button.classList.toggle("is-locked", requiresPro && !isPro);
-  }
+  syncEffectEntitlementUI(entitlement);
 }
 
 async function openPaywall() {
@@ -131,7 +149,7 @@ async function applyBootstrapState(state) {
     accountAvatar.textContent = "SP";
     accountStatePill.textContent = "Not ready";
     accountStatePill.style.background = "#f3e5d5";
-    statusText.textContent = "You need to sign in before opening the board.";
+    statusText.textContent = "Sign in first, then open your board.";
     serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
     applyEntitlementUI(null);
     toggleAuthenticatedUI(false);
@@ -213,6 +231,7 @@ signOutButton.addEventListener("click", async () => {
 
   try {
     await signOut();
+    quickEffectSelect.value = "";
     await applyBootstrapState(null);
   } catch (error) {
     console.error(error);
@@ -224,7 +243,6 @@ signOutButton.addEventListener("click", async () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-
   if (!currentState) {
     statusText.textContent = "Sign in with Google first.";
     return;
@@ -255,39 +273,48 @@ openWithMessageButton.addEventListener("click", async () => {
   }
 
   const text = quickMessageInput.value.trim();
-  await openBoard(text ? {
+  if (!text) {
+    statusText.textContent = "Type a message first.";
+    return;
+  }
+
+  await openBoard({
     type: "message",
     text,
     label: "Quick message",
-  } : null);
+  });
+});
+
+sendEffectButton.addEventListener("click", async () => {
+  if (!currentState) {
+    statusText.textContent = "Sign in with Google first.";
+    return;
+  }
+
+  const selected = QUICK_EFFECTS[quickEffectSelect.value];
+  if (!selected) {
+    statusText.textContent = "Choose an effect first.";
+    return;
+  }
+
+  if (selected.pro && !currentState.entitlement?.isPro) {
+    statusText.textContent = "That effect is available on Pro.";
+    await openPaywall();
+    return;
+  }
+
+  await openBoard({
+    type: "effect",
+    effect: selected.effect,
+    color: selected.color,
+    size: selected.size,
+    label: selected.label,
+  });
 });
 
 upgradeButton.addEventListener("click", () => {
   void openPaywall();
 });
-
-for (const button of effectShortcutButtons) {
-  button.addEventListener("click", async () => {
-    if (!currentState) {
-      statusText.textContent = "Sign in with Google first.";
-      return;
-    }
-
-    if (button.dataset.pro === "true" && !currentState.entitlement?.isPro) {
-      statusText.textContent = "This effect is available to Pro members. You can view the plans.";
-      await openPaywall();
-      return;
-    }
-
-    await openBoard({
-      type: "effect",
-      effect: button.dataset.effect,
-      color: button.dataset.color || "#232018",
-      size: 6,
-      label: button.textContent.trim(),
-    });
-  });
-}
 
 extensionEnabledInput.addEventListener("change", () => {
   void updatePreferenceState();
@@ -306,4 +333,3 @@ friendOnlineNotificationsInput.addEventListener("change", () => {
 });
 
 void refreshBootstrapState();
-
