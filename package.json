@@ -5,6 +5,7 @@
   "description": "Gercek zamanli cizim ve sohbet icin deploy edilebilir WebSocket relay sunucusu",
   "main": "relay/server.js",
   "scripts": {
+    "build": "node scripts/build-extension.mjs",
     "start": "node relay/server.js",
     "check:relay": "node --check relay/server.js",
     "check:popup": "node --check src/popup/popup.js",

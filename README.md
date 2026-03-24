@@ -32,16 +32,24 @@ Bu repo artik starter kit'teki ayri katman mantigina daha yakin bir yapi kullani
 
 1. Node.js kurulu degilse kur.
 2. Bu klasorde `npm install` calistir.
-3. Relay sunucuyu baslatmak icin `npm start` calistir.
-4. Chrome'da `chrome://extensions` ac.
-5. Gelistirici modunu aktif et.
-6. `Load unpacked` ile bu klasoru sec.
-7. Extension popup'inda isim ve sunucu adresi olarak `http://localhost:3000` gir.
-8. Acilan panelde kendi sync kodunu arkadasinla paylas.
-9. Arkadasinin kodunu sync alanina girerek bir kez esles.
-10. Arkadas listesinden online kullaniciyi secip mod baslat.
-11. `Ciz gonder` modunda sen cizersin, karsi taraf izler.
-12. `Es zamanli` modunda iki taraf da ayni anda cizebilir.
+3. Extension paketi icin `npm run build` calistir.
+4. Relay sunucuyu baslatmak icin `npm start` calistir.
+5. Chrome'da `chrome://extensions` ac.
+6. Gelistirici modunu aktif et.
+7. `Load unpacked` ile `dist` klasorunu sec.
+8. Extension popup'inda isim ve sunucu adresi olarak `http://localhost:3000` gir.
+9. Acilan panelde kendi sync kodunu arkadasinla paylas.
+10. Arkadasinin kodunu sync alanina girerek bir kez esles.
+11. Arkadas listesinden online kullaniciyi secip mod baslat.
+12. `Ciz gonder` modunda sen cizersin, karsi taraf izler.
+13. `Es zamanli` modunda iki taraf da ayni anda cizebilir.
+
+## Build Ciktisi
+
+- `npm run build` her seferinde `dist/` klasorunu bastan olusturur.
+- `dist/` sadece extension icin gereken dosyalari icerir: `manifest.json`, `src/`, `public/`.
+- `dist/` `.gitignore` icindedir; repo ve GitHub tarihi build ciktisi ile kirlenmez.
+- Chrome `Load unpacked` ve store paketleme icin artik hedef klasor `dist/` olmalidir.
 
 ## Farkli Bilgisayarlar Icin
 
