@@ -287,6 +287,12 @@ h2 {
   border-style: dashed;
 }
 
+.primary-wide.is-guarded,
+.secondary-button.is-guarded,
+.effect-chip.is-guarded {
+  opacity: 0.8;
+}
+
 .effect-chip:hover,
 .secondary-button:hover {
   border-color: rgba(213, 93, 63, 0.42);
@@ -294,8 +300,7 @@ h2 {
 }
 
 .session-form.is-disabled {
-  opacity: 0.55;
-  pointer-events: none;
+  opacity: 0.78;
 }
 
 .settings-shell {

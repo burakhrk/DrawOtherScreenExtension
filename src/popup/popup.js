@@ -53,11 +53,14 @@ function normalizeServerUrl(value) {
 
 function toggleAuthenticatedUI(isAuthenticated) {
   form.classList.toggle("is-disabled", !isAuthenticated);
-  openWithMessageButton.disabled = !isAuthenticated;
-  openBoardButton.disabled = !isAuthenticated;
+  openWithMessageButton.classList.toggle("is-guarded", !isAuthenticated);
+  openBoardButton.classList.toggle("is-guarded", !isAuthenticated);
+  openWithMessageButton.setAttribute("aria-disabled", String(!isAuthenticated));
+  openBoardButton.setAttribute("aria-disabled", String(!isAuthenticated));
 
   for (const button of effectShortcutButtons) {
-    button.disabled = !isAuthenticated;
+    button.classList.toggle("is-guarded", !isAuthenticated);
+    button.setAttribute("aria-disabled", String(!isAuthenticated));
   }
 
   signInButton.classList.toggle("hidden", isAuthenticated);
