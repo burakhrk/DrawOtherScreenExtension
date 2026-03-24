@@ -25,6 +25,11 @@ async function build() {
   await writeFile(path.join(distDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   await copyIfExists("src");
   await copyIfExists("public");
+  await mkdir(path.join(distDir, "public", "vendor"), { recursive: true });
+  await cp(
+    path.join(rootDir, "node_modules", "@supabase", "supabase-js", "dist", "umd", "supabase.js"),
+    path.join(distDir, "public", "vendor", "supabase.js"),
+  );
 }
 
 await build();
