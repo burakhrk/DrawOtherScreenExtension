@@ -402,6 +402,48 @@ h2 {
   background: rgba(255, 255, 255, 0.8);
 }
 
+.toast-stack {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  display: grid;
+  gap: 10px;
+  width: min(320px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(32, 29, 23, 0.1);
+  background: rgba(32, 29, 23, 0.95);
+  color: white;
+  box-shadow: 0 16px 32px rgba(32, 29, 23, 0.18);
+  transform: translateY(8px);
+  opacity: 0;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.toast.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.toast p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.84);
+}
+
 @media (max-width: 1200px) {
   .layout {
     grid-template-columns: 300px minmax(0, 1fr);
@@ -424,5 +466,12 @@ h2 {
 
   .stage {
     min-height: 68vh;
+  }
+
+  .toast-stack {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    width: auto;
   }
 }

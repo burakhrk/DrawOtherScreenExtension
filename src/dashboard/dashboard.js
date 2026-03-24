@@ -1,6 +1,10 @@
 import { track } from "../lib/analytics.js";
-import { QUICK_ACTION_KEY } from "../lib/constants.js";
+import {
+  FRIEND_ONLINE_NOTIFICATION_KEY,
+  QUICK_ACTION_KEY,
+} from "../lib/constants.js";
 import { getAccessToken, getCurrentUser } from "../lib/auth.js";
+import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import {
   acceptFriendRequest,
   bootstrap,
@@ -44,6 +48,7 @@ const sendDraftButton = document.getElementById("sendDraft");
 const leaveSessionButton = document.getElementById("leaveSession");
 const canvas = document.getElementById("drawCanvas");
 const context = canvas.getContext("2d");
+const toastStack = document.getElementById("toastStack");
 
 let socket;
 let userId = "";
@@ -62,6 +67,61 @@ let currentRpcSession = null;
 let draftSegments = [];
 let pendingDraftTarget = null;
 let onlineUserIds = new Set();
+let previousOnlineUserIds = new Set();
+let hasPresenceSnapshot = false;
+
+function getTodayStamp() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function showToast(title, text) {
+  if (!toastStack) {
+    return;
+  }
+
+  const toast = document.createElement("article");
+  toast.className = "toast";
+  const titleElement = document.createElement("strong");
+  titleElement.textContent = title;
+  const textElement = document.createElement("p");
+  textElement.textContent = text;
+  toast.append(titleElement, textElement);
+
+  toastStack.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("is-visible");
+  });
+
+  const removeToast = () => {
+    toast.classList.remove("is-visible");
+    window.setTimeout(() => toast.remove(), 180);
+  };
+
+  window.setTimeout(removeToast, 4200);
+}
+
+async function maybeNotifyFriendOnline(friendId) {
+  const friend = friends.find((entry) => entry.userId === friendId);
+  if (!friend) {
+    return;
+  }
+
+  const todayStamp = getTodayStamp();
+  const notificationsByFriend = (await getLocalObject(FRIEND_ONLINE_NOTIFICATION_KEY, {})) || {};
+
+  if (notificationsByFriend[friendId] === todayStamp) {
+    return;
+  }
+
+  notificationsByFriend[friendId] = todayStamp;
+  await setLocalObject(FRIEND_ONLINE_NOTIFICATION_KEY, notificationsByFriend);
+  showToast(`${friend.displayName} online oldu`, "Istersen hemen bir cizim ya da surpriz gonderebilirsin.");
+}
 
 function toWebSocketUrl(value) {
   const url = new URL(value);
@@ -641,9 +701,27 @@ function connect() {
     }
 
     if (message.type === "presence-state") {
-      onlineUserIds = new Set(message.onlineUserIds || []);
+      const nextOnlineUserIds = new Set(message.onlineUserIds || []);
+      const newlyOnlineFriendIds = [];
+
+      if (hasPresenceSnapshot) {
+        for (const friend of friends) {
+          if (!previousOnlineUserIds.has(friend.userId) && nextOnlineUserIds.has(friend.userId)) {
+            newlyOnlineFriendIds.push(friend.userId);
+          }
+        }
+      }
+
+      onlineUserIds = nextOnlineUserIds;
+      previousOnlineUserIds = new Set(nextOnlineUserIds);
+      hasPresenceSnapshot = true;
       renderFriends();
       updateSessionUI();
+
+      for (const friendId of newlyOnlineFriendIds) {
+        void maybeNotifyFriendOnline(friendId);
+      }
+
       return;
     }
 
@@ -731,6 +809,8 @@ function connect() {
   socket.addEventListener("close", () => {
     currentSession = null;
     currentRpcSession = null;
+    previousOnlineUserIds = new Set();
+    hasPresenceSnapshot = false;
     resetPointerState();
     updateSessionUI();
     setStatus("Baglanti koptu, tekrar deneniyor...");

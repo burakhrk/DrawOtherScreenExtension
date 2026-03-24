@@ -6,3 +6,4 @@ export const SUPABASE_ANON_KEY =
 
 export const PROFILE_STORAGE_KEY = "drawing-office-local-profile";
 export const QUICK_ACTION_KEY = "sync-sketch-quick-action";
+export const FRIEND_ONLINE_NOTIFICATION_KEY = "drawing-office-friend-online-notifications";
