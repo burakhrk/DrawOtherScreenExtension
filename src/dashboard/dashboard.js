@@ -1,6 +1,7 @@
 import { track } from "../lib/analytics.js";
 import {
   FRIEND_ONLINE_NOTIFICATION_KEY,
+  FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
   QUICK_ACTION_KEY,
 } from "../lib/constants.js";
 import { getAccessToken, getCurrentUser } from "../lib/auth.js";
@@ -102,10 +103,15 @@ function showToast(title, text) {
     window.setTimeout(() => toast.remove(), 180);
   };
 
-  window.setTimeout(removeToast, 4200);
+  window.setTimeout(removeToast, 2600);
 }
 
 async function maybeNotifyFriendOnline(friendId) {
+  const notificationsEnabled = await getLocalObject(FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY, false);
+  if (!notificationsEnabled) {
+    return;
+  }
+
   const friend = friends.find((entry) => entry.userId === friendId);
   if (!friend) {
     return;

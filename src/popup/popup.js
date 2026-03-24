@@ -1,6 +1,10 @@
 import { track } from "../lib/analytics.js";
 import { signInWithGoogle, signOut } from "../lib/auth.js";
-import { QUICK_ACTION_KEY, PROFILE_STORAGE_KEY } from "../lib/constants.js";
+import {
+  FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
+  QUICK_ACTION_KEY,
+  PROFILE_STORAGE_KEY,
+} from "../lib/constants.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import { bootstrap, setPreferences } from "../lib/drawing-office-social-client.js";
 
@@ -11,6 +15,7 @@ const serverUrlInput = document.getElementById("serverUrl");
 const extensionEnabledInput = document.getElementById("extensionEnabled");
 const appearOnlineInput = document.getElementById("appearOnline");
 const allowSurpriseInput = document.getElementById("allowSurprise");
+const friendOnlineNotificationsInput = document.getElementById("friendOnlineNotifications");
 const quickMessageInput = document.getElementById("quickMessage");
 const openWithMessageButton = document.getElementById("openWithMessage");
 const effectShortcutButtons = Array.from(document.querySelectorAll(".effect-chip"));
@@ -77,6 +82,8 @@ async function openBoard(quickAction = null) {
 
 async function applyBootstrapState(state) {
   currentState = state;
+  const notificationsEnabled = await getLocalObject(FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY, false);
+  friendOnlineNotificationsInput.checked = Boolean(notificationsEnabled);
 
   if (!state) {
     accountTitle.textContent = "Google ile giris bekleniyor";
@@ -135,6 +142,13 @@ async function updatePreferenceState() {
     console.error(error);
     statusText.textContent = error.message || "Tercihler kaydedilemedi.";
   }
+}
+
+async function updateLocalNotificationPreference() {
+  await setLocalObject(
+    FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
+    Boolean(friendOnlineNotificationsInput.checked),
+  );
 }
 
 signInButton.addEventListener("click", async () => {
@@ -233,6 +247,10 @@ appearOnlineInput.addEventListener("change", () => {
 
 allowSurpriseInput.addEventListener("change", () => {
   void updatePreferenceState();
+});
+
+friendOnlineNotificationsInput.addEventListener("change", () => {
+  void updateLocalNotificationPreference();
 });
 
 void refreshBootstrapState();
