@@ -96,6 +96,7 @@ h2 {
 }
 
 .sync-card,
+.membership-card,
 .pair-form,
 .friends-list-shell {
   padding: 18px 22px;
@@ -107,6 +108,31 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--line);
+}
+
+.membership-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.membership-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.membership-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #f3e5d5;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .pair-form {
@@ -253,6 +279,10 @@ h2 {
   font-weight: 700;
 }
 
+.mode-button.pro-lock {
+  background: linear-gradient(135deg, #fff6eb, #ffe8d0);
+}
+
 .mode-button:disabled,
 .ghost:disabled {
   cursor: not-allowed;
@@ -302,6 +332,11 @@ h2 {
   cursor: pointer;
   color: var(--ink);
   background: #f3e5d5;
+}
+
+.upgrade-cta {
+  background: linear-gradient(135deg, #201d17, #4b3d31);
+  color: white;
 }
 
 .canvas-shell {

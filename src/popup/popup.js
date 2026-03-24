@@ -7,6 +7,7 @@ import {
 } from "../lib/constants.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import { bootstrap, setPreferences } from "../lib/drawing-office-social-client.js";
+import { getEntitlementBadge } from "../lib/entitlements.js";
 
 const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
 
@@ -23,6 +24,10 @@ const accountTitle = document.getElementById("accountTitle");
 const accountSubtitle = document.getElementById("accountSubtitle");
 const accountAvatar = document.getElementById("accountAvatar");
 const accountStatePill = document.getElementById("accountStatePill");
+const planStatePill = document.getElementById("planStatePill");
+const planTitle = document.getElementById("planTitle");
+const planDetail = document.getElementById("planDetail");
+const upgradeButton = document.getElementById("upgradeButton");
 const signInButton = document.getElementById("signInButton");
 const signOutButton = document.getElementById("signOutButton");
 const statusText = document.getElementById("statusText");
@@ -59,6 +64,38 @@ function toggleAuthenticatedUI(isAuthenticated) {
   signOutButton.classList.toggle("hidden", !isAuthenticated);
 }
 
+function applyEntitlementUI(entitlement) {
+  const badge = getEntitlementBadge(entitlement);
+  const isPro = Boolean(entitlement?.isPro);
+
+  planStatePill.textContent = entitlement?.plan === "pro-trial" ? "Pro deneme" : isPro ? "Pro" : "Free";
+  planStatePill.style.background = isPro ? "var(--success)" : "#f3e5d5";
+  planTitle.textContent = badge.title;
+  planDetail.textContent = badge.detail;
+  upgradeButton.textContent = badge.cta;
+
+  for (const button of effectShortcutButtons) {
+    const requiresPro = button.dataset.pro === "true";
+    button.classList.toggle("is-locked", requiresPro && !isPro);
+  }
+}
+
+async function openPaywall() {
+  const paywallUrl = currentState?.entitlement?.paywallUrl;
+  if (!paywallUrl) {
+    statusText.textContent = "Paywall adresi henuz ayarlanmis degil.";
+    return;
+  }
+
+  await track("Opened Paywall", {
+    screen: "popup",
+    surface: "membership",
+    result: "success",
+  });
+
+  await chrome.tabs.create({ url: paywallUrl });
+}
+
 async function openBoard(quickAction = null) {
   const storedProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
   const serverUrl = normalizeServerUrl(serverUrlInput.value);
@@ -93,6 +130,7 @@ async function applyBootstrapState(state) {
     accountStatePill.style.background = "#f3e5d5";
     statusText.textContent = "Giris yapmadan panel acilmaz.";
     serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
+    applyEntitlementUI(null);
     toggleAuthenticatedUI(false);
     return;
   }
@@ -111,6 +149,7 @@ async function applyBootstrapState(state) {
   accountStatePill.style.background = state.preferences.extensionEnabled
     ? (state.preferences.appearOnline ? "var(--success)" : "var(--blue)")
     : "#f3e5d5";
+  applyEntitlementUI(state.entitlement);
   statusText.textContent = `${state.friends.length} arkadas, ${state.incomingRequests.length} gelen istek hazir.`;
   toggleAuthenticatedUI(true);
 }
@@ -220,10 +259,20 @@ openWithMessageButton.addEventListener("click", async () => {
   } : null);
 });
 
+upgradeButton.addEventListener("click", () => {
+  void openPaywall();
+});
+
 for (const button of effectShortcutButtons) {
   button.addEventListener("click", async () => {
     if (!currentState) {
       statusText.textContent = "Once Google ile giris yap.";
+      return;
+    }
+
+    if (button.dataset.pro === "true" && !currentState.entitlement?.isPro) {
+      statusText.textContent = "Bu efekt Pro uyelere acik. Planlari gorebilirsin.";
+      await openPaywall();
       return;
     }
 

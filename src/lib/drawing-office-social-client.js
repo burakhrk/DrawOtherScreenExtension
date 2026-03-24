@@ -1,6 +1,7 @@
 import { APP_ID } from "./constants.js";
 import { track } from "./analytics.js";
 import { getBestDisplayName, getCurrentUser } from "./auth.js";
+import { resolveEntitlement } from "./entitlements.js";
 import { supabase } from "./supabase-client.js";
 
 async function rpc(fn, args = {}) {
@@ -60,6 +61,7 @@ function enrichState(rawState, user) {
       displayName: profileName,
       avatarUrl: ownProfile?.avatar_url || user.user_metadata?.avatar_url || null,
     },
+    entitlement: resolveEntitlement(user),
     preferences: {
       extensionEnabled: rawState.preferences?.extension_enabled !== false,
       appearOnline: rawState.preferences?.appear_online !== false,

@@ -26,6 +26,18 @@
           <button id="copySyncCode" class="ghost">Kopyala</button>
         </section>
 
+        <section class="membership-card">
+          <div>
+            <p class="eyebrow">Plan</p>
+            <strong id="membershipTitle">Plan yukleniyor...</strong>
+            <p id="membershipDetail" class="subtle">Uyelik ayrintilari hesapla birlikte gelecek.</p>
+          </div>
+          <div class="membership-actions">
+            <span id="membershipPill" class="membership-pill">...</span>
+            <button id="upgradePlan" class="ghost">Pro'ya Gec</button>
+          </div>
+        </section>
+
         <form id="profileForm" class="pair-form profile-form">
           <label>
             <span>Profil adin</span>
@@ -68,10 +80,10 @@
                 <option value="crack">Kirik ekran</option>
                 <option value="scribble">Karalama</option>
                 <option value="drip">Damlayan boya</option>
-                <option value="zap">Yildirim</option>
-                <option value="heartburst">Kalp patlamasi</option>
-                <option value="bullet">Kursun izi</option>
-                <option value="stickman">Stickman</option>
+                <option value="zap" data-pro="true">Yildirim • Pro</option>
+                <option value="heartburst" data-pro="true">Kalp patlamasi • Pro</option>
+                <option value="bullet" data-pro="true">Kursun izi • Pro</option>
+                <option value="stickman" data-pro="true">Stickman • Pro</option>
               </select>
             </label>
 

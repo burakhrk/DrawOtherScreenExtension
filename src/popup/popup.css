@@ -35,6 +35,7 @@ body {
 
 .hero,
 .account-card,
+.plan-card,
 .launch-card,
 .settings-shell {
   border: 1px solid var(--line);
@@ -84,6 +85,36 @@ h2 {
   padding: 16px;
   display: grid;
   gap: 14px;
+}
+
+.plan-card {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.plan-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.plan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plan-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #f3e5d5;
 }
 
 .account-main {
@@ -247,6 +278,15 @@ h2 {
   font-size: 13px;
 }
 
+.effect-chip.is-pro-chip {
+  background: linear-gradient(135deg, #fff8ef, #fff2db);
+}
+
+.effect-chip.is-locked {
+  opacity: 0.68;
+  border-style: dashed;
+}
+
 .effect-chip:hover,
 .secondary-button:hover {
   border-color: rgba(213, 93, 63, 0.42);
@@ -343,7 +383,9 @@ h2 {
 
   .section-top,
   .account-row,
-  .account-actions {
+  .account-actions,
+  .plan-card,
+  .plan-row {
     flex-direction: column;
     align-items: stretch;
   }

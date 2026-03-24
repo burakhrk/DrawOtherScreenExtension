@@ -2,10 +2,13 @@ import { track } from "../lib/analytics.js";
 import {
   FRIEND_ONLINE_NOTIFICATION_KEY,
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
+  FREE_EFFECTS,
+  PRO_ADVANCED_EFFECTS,
   QUICK_ACTION_KEY,
 } from "../lib/constants.js";
 import { getAccessToken, getCurrentUser } from "../lib/auth.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
+import { getEntitlementBadge } from "../lib/entitlements.js";
 import {
   acceptFriendRequest,
   bootstrap,
@@ -31,6 +34,10 @@ const profileNameInput = document.getElementById("profileNameInput");
 const pairForm = document.getElementById("pairForm");
 const pairCodeInput = document.getElementById("pairCodeInput");
 const friendCount = document.getElementById("friendCount");
+const membershipTitle = document.getElementById("membershipTitle");
+const membershipDetail = document.getElementById("membershipDetail");
+const membershipPill = document.getElementById("membershipPill");
+const upgradePlanButton = document.getElementById("upgradePlan");
 const requestList = document.getElementById("requestList");
 const friendsList = document.getElementById("friendsList");
 const sessionTitle = document.getElementById("sessionTitle");
@@ -57,6 +64,7 @@ let displayName = "Misafir";
 let extensionEnabled = true;
 let appearOnline = true;
 let allowSurprise = true;
+let entitlement = null;
 let isDrawing = false;
 let lastPoint = null;
 let activeStrokeId = null;
@@ -104,6 +112,49 @@ function showToast(title, text) {
   };
 
   window.setTimeout(removeToast, 2600);
+}
+
+async function openPaywall(source = "dashboard") {
+  const paywallUrl = entitlement?.paywallUrl;
+  if (!paywallUrl) {
+    setStatus("Paywall adresi henuz ayarlanmis degil");
+    return;
+  }
+
+  await track("Opened Paywall", {
+    screen: "board",
+    surface: source,
+    result: "success",
+  });
+
+  await chrome.tabs.create({ url: paywallUrl });
+}
+
+function updateMembershipUI() {
+  const badge = getEntitlementBadge(entitlement);
+  membershipTitle.textContent = badge.title;
+  membershipDetail.textContent = badge.detail;
+  membershipPill.textContent = entitlement?.plan === "pro-trial" ? "Pro deneme" : entitlement?.isPro ? "Pro" : "Free";
+  membershipPill.style.background = entitlement?.isPro ? "rgba(33, 111, 67, 0.12)" : "#f3e5d5";
+  upgradePlanButton.textContent = badge.cta;
+  upgradePlanButton.classList.toggle("upgrade-cta", !entitlement?.isPro);
+}
+
+function ensureAllowedEffectSelection() {
+  const currentEffect = effectPicker.value;
+  if (!entitlement?.isPro && PRO_ADVANCED_EFFECTS.includes(currentEffect)) {
+    effectPicker.value = FREE_EFFECTS.includes("draw") ? "draw" : FREE_EFFECTS[0];
+  }
+
+  for (const option of effectPicker.options) {
+    if (option.dataset.pro === "true") {
+      option.disabled = !entitlement?.isPro;
+    }
+  }
+}
+
+function canUseEffect(effectName) {
+  return entitlement?.isPro || !PRO_ADVANCED_EFFECTS.includes(effectName);
 }
 
 async function maybeNotifyFriendOnline(friendId) {
@@ -511,6 +562,7 @@ function renderFriends() {
     const disabled = online ? "" : "disabled";
     const surpriseDisabled = allowSurprise ? "" : "disabled";
     const draftDisabled = draftSegments.length > 0 && online ? "" : "disabled";
+    const liveLocked = !entitlement?.isPro;
 
     card.innerHTML = `
       <div class="friend-top">
@@ -524,7 +576,7 @@ function renderFriends() {
       </div>
       <div class="friend-actions">
         <button class="mode-button" data-user-id="${friend.userId}" data-mode="send" ${disabled} ${allowSurprise ? "" : surpriseDisabled}>Ciz gonder</button>
-        <button class="mode-button" data-user-id="${friend.userId}" data-mode="live" ${disabled}>Es zamanli</button>
+        <button class="mode-button ${liveLocked ? "pro-lock" : ""}" data-user-id="${friend.userId}" data-mode="live" ${disabled} ${liveLocked ? "data-pro-lock=\"true\"" : ""}>${liveLocked ? "Es zamanli • Pro" : "Es zamanli"}</button>
         <button class="mode-button" data-user-id="${friend.userId}" data-mode="draft" ${draftDisabled}>Taslak gonder</button>
       </div>
     `;
@@ -574,6 +626,7 @@ function applySocialState(state) {
   extensionEnabled = state.preferences.extensionEnabled;
   appearOnline = state.preferences.appearOnline;
   allowSurprise = state.preferences.allowSurprise;
+  entitlement = state.entitlement;
   friends = state.friends;
   incomingRequests = state.incomingRequests;
   outgoingRequests = state.outgoingRequests;
@@ -585,6 +638,8 @@ function applySocialState(state) {
     : `Pasif mod - Sunucu: ${serverUrl}`;
   syncCode.textContent = userId;
 
+  updateMembershipUI();
+  ensureAllowedEffectSelection();
   renderRequests();
   renderFriends();
   updateSessionUI();
@@ -610,6 +665,15 @@ async function applyQuickAction() {
   }
 
   if (action.type === "effect" && action.effect) {
+    if (!canUseEffect(action.effect)) {
+      addMessage({
+        system: true,
+        text: "Bu hizli efekt Pro uyelige acik. Paywall sayfasina yonlendiriliyorsun.",
+      });
+      void openPaywall("quick-effect-locked");
+      return;
+    }
+
     const rect = canvas.getBoundingClientRect();
     const point = {
       x: rect.width * 0.5,
@@ -828,6 +892,16 @@ canvas.addEventListener("pointerdown", (event) => {
   const point = pointerPosition(event);
   const selectedEffect = effectPicker.value;
 
+  if (!canUseEffect(selectedEffect)) {
+    addMessage({
+      system: true,
+      text: "Bu efekt Pro uyelere acik. Free planda temel efektleri kullanabilirsin.",
+    });
+    void openPaywall("effect-locked");
+    ensureAllowedEffectSelection();
+    return;
+  }
+
   if (selectedEffect !== "draw") {
     const nextPoint = selectedEffect === "zap"
       ? { x: point.x + 90, y: point.y + 40 }
@@ -1000,6 +1074,12 @@ friendsList.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.proLock === "true") {
+    setStatus("Es zamanli cizim Pro uyelere acik");
+    void openPaywall("live-mode-locked");
+    return;
+  }
+
   const mode = button.dataset.mode === "draft" ? "send" : button.dataset.mode;
   if (button.dataset.mode === "draft") {
     pendingDraftTarget = { userId: button.dataset.userId };
@@ -1055,6 +1135,16 @@ copySyncCodeButton.addEventListener("click", async () => {
 });
 
 window.addEventListener("resize", resizeCanvas);
+effectPicker.addEventListener("change", () => {
+  if (!canUseEffect(effectPicker.value)) {
+    setStatus("Bu efekt Pro uyelere acik");
+    void openPaywall("effect-picker-locked");
+    ensureAllowedEffectSelection();
+  }
+});
+upgradePlanButton.addEventListener("click", () => {
+  void openPaywall("membership-card");
+});
 
 async function handleSessionStart(targetUserId, mode) {
   try {

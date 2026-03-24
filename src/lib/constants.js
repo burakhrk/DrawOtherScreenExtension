@@ -1,4 +1,8 @@
 export const APP_ID = "drawing-office";
+export const PAYWALL_URL = "https://your-hub-domain.vercel.app/drawing-office/payment";
+export const PRO_TRIAL_HOURS = 48;
+export const PRO_ADVANCED_EFFECTS = ["zap", "heartburst", "bullet", "stickman"];
+export const FREE_EFFECTS = ["draw", "crack", "scribble", "drip"];
 
 export const SUPABASE_URL = "https://euzeprutflhfavzxuwfs.supabase.co";
 export const SUPABASE_ANON_KEY =
