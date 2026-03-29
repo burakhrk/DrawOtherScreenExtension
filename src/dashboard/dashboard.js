@@ -848,6 +848,28 @@ function toOutboundSegment(segment) {
   };
 }
 
+function canSendSegment(segment) {
+  return canUseEffect(segment.effect || "draw");
+}
+
+function sanitizeDraftSegmentsForEntitlement() {
+  const nextDraftSegments = draftSegments.filter(canSendSegment);
+  const removedCount = draftSegments.length - nextDraftSegments.length;
+
+  if (removedCount <= 0) {
+    return;
+  }
+
+  draftSegments = nextDraftSegments;
+  addMessage({
+    system: true,
+    text: removedCount === 1
+      ? "One Pro draft item was removed because your current plan cannot send it."
+      : `${removedCount} Pro draft items were removed because your current plan cannot send them.`,
+  });
+  updateSessionUI();
+}
+
 function storeDraft(segment) {
   draftSegments.push(toOutboundSegment(segment));
   updateSessionUI();
@@ -858,7 +880,18 @@ function replayDraftToCurrentSession() {
     return;
   }
 
-  for (const segment of draftSegments) {
+  const sendableDraftSegments = draftSegments.filter(canSendSegment);
+
+  if (sendableDraftSegments.length === 0) {
+    addMessage({
+      system: true,
+      text: "Your current draft only contains Pro effects. Upgrade to send it.",
+    });
+    void openPaywall("draft-pro-locked");
+    return;
+  }
+
+  for (const segment of sendableDraftSegments) {
     send({
       type: "draw-segment",
       sessionId: currentSession.sessionId,
@@ -868,9 +901,9 @@ function replayDraftToCurrentSession() {
 
   addMessage({
     system: true,
-    text: `${draftSegments.length} draft items were sent.`,
+    text: `${sendableDraftSegments.length} draft items were sent.`,
   });
-  draftSegments = [];
+  draftSegments = draftSegments.filter((segment) => !canSendSegment(segment));
   updateSessionUI();
 }
 
@@ -1038,6 +1071,7 @@ function applySocialState(state) {
   setSignedInDashboardUI();
   updateMembershipUI();
   ensureAllowedEffectSelection();
+  sanitizeDraftSegmentsForEntitlement();
   renderRequests();
   renderFriends();
   updateSessionUI();
