@@ -120,6 +120,81 @@ let hasDirectMessages = false;
 let onboardingStep = 0;
 let isGuestMode = false;
 let activeMexicanWaveCleanup = null;
+const effectSendCooldownState = new Map();
+const effectRenderCooldownState = new Map();
+
+function getEffectSendCooldownMs(effectName) {
+  if (effectName === "mexicanwave") {
+    return 15_000;
+  }
+
+  if (effectName !== "draw") {
+    return 850;
+  }
+
+  return 0;
+}
+
+function getEffectRenderCooldownMs(effectName) {
+  if (effectName === "mexicanwave") {
+    return 12_000;
+  }
+
+  if (effectName === "stickerslap") {
+    return 1_400;
+  }
+
+  if (effectName !== "draw") {
+    return 450;
+  }
+
+  return 0;
+}
+
+function getRemainingCooldownMs(cache, key, windowMs) {
+  if (!windowMs) {
+    return 0;
+  }
+
+  const previousAt = cache.get(key) || 0;
+  const elapsed = Date.now() - previousAt;
+  return Math.max(0, windowMs - elapsed);
+}
+
+function consumeCooldown(cache, key) {
+  cache.set(key, Date.now());
+}
+
+function canTriggerEffectSend(effectName, { notify = false } = {}) {
+  const cooldownMs = getEffectSendCooldownMs(effectName);
+  const remainingMs = getRemainingCooldownMs(effectSendCooldownState, effectName, cooldownMs);
+
+  if (remainingMs > 0) {
+    if (notify) {
+      const seconds = Math.ceil(remainingMs / 1000);
+      setStatus(
+        effectName === "mexicanwave"
+          ? `Text wave is cooling down for ${seconds}s`
+          : "That effect is cooling down for a moment",
+      );
+    }
+    return false;
+  }
+
+  consumeCooldown(effectSendCooldownState, effectName);
+  return true;
+}
+
+function shouldRenderEffectNow(effectName) {
+  const cooldownMs = getEffectRenderCooldownMs(effectName);
+  const remainingMs = getRemainingCooldownMs(effectRenderCooldownState, effectName, cooldownMs);
+  if (remainingMs > 0) {
+    return false;
+  }
+
+  consumeCooldown(effectRenderCooldownState, effectName);
+  return true;
+}
 
 function applyRuntimePreferences(nextPreferences, { updateStatus = true } = {}) {
   extensionEnabled = nextPreferences.extensionEnabled !== false;
@@ -1161,6 +1236,10 @@ function drawSegment(segment) {
     ? { ...segment, from: denormalizePoint(segment.from), to: denormalizePoint(segment.to) }
     : segment;
 
+  if (!shouldRenderEffectNow(drawableSegment.effect || "draw")) {
+    return;
+  }
+
   if (drawableSegment.effect === "mexicanwave") return runMexicanWaveEffect();
   if (drawableSegment.effect === "crack") return drawCrack(drawableSegment);
   if (drawableSegment.effect === "scribble") return drawScribble(drawableSegment);
@@ -1233,6 +1312,10 @@ function sanitizeDraftSegmentsForEntitlement() {
 }
 
 function storeDraft(segment) {
+  if (segment.effect === "mexicanwave") {
+    draftSegments = draftSegments.filter((draftSegment) => draftSegment.effect !== "mexicanwave");
+  }
+
   draftSegments.push(toOutboundSegment(segment));
   updateSessionUI();
 }
@@ -1798,6 +1881,10 @@ canvas.addEventListener("pointerdown", (event) => {
   }
 
   if (selectedEffect !== "draw") {
+    if (!canTriggerEffectSend(selectedEffect, { notify: true })) {
+      return;
+    }
+
     const nextPoint = selectedEffect === "zap"
       ? { x: point.x + 90, y: point.y + 40 }
       : point;

@@ -388,7 +388,20 @@ function sanitizeSegment(segment) {
   }
 
   const effect = typeof segment.effect === "string" ? segment.effect : "draw";
-  const allowedEffects = new Set(["draw", "crack", "scribble", "drip", "zap", "heartburst", "bullet", "stickman"]);
+  const allowedEffects = new Set([
+    "draw",
+    "crack",
+    "scribble",
+    "drip",
+    "inkslap",
+    "confetti",
+    "zap",
+    "heartburst",
+    "bullet",
+    "stickman",
+    "stickerslap",
+    "mexicanwave",
+  ]);
 
   if (!allowedEffects.has(effect)) {
     return null;
@@ -423,6 +436,18 @@ function sanitizeSegment(segment) {
     size,
     seed,
   };
+}
+
+function getEffectRateLimit(effect) {
+  if (effect === "mexicanwave") {
+    return { key: "effect-heavy-mexicanwave", limit: 2, windowMs: 30_000, message: "Text wave is cooling down. Try again in a moment." };
+  }
+
+  if (effect !== "draw") {
+    return { key: "effect-burst", limit: 18, windowMs: 10_000, message: "Effects are being sent too quickly." };
+  }
+
+  return null;
 }
 
 function sanitizeChatText(value) {
@@ -913,6 +938,12 @@ wss.on("connection", (socket) => {
       const segment = sanitizeSegment(message.segment);
       if (!segment) {
         sendProtocolError(socket, "The drawing payload is invalid.");
+        return;
+      }
+
+      const effectRateLimit = getEffectRateLimit(segment.effect);
+      if (effectRateLimit && !enforceRateLimit(socket, effectRateLimit.key, effectRateLimit.limit, effectRateLimit.windowMs)) {
+        sendProtocolError(socket, effectRateLimit.message);
         return;
       }
 

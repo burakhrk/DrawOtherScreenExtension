@@ -7,6 +7,40 @@ async function getActiveTab() {
   return tabs[0];
 }
 
+const surpriseEffectCooldownState = new Map();
+
+function getSurpriseCooldownMs(effectName) {
+  if (effectName === "mexicanwave") {
+    return 12_000;
+  }
+
+  if (effectName === "stickerslap") {
+    return 1_400;
+  }
+
+  if (effectName && effectName !== "draw") {
+    return 450;
+  }
+
+  return 0;
+}
+
+function shouldDeliverSurprise(tabId, effectName) {
+  const cooldownMs = getSurpriseCooldownMs(effectName);
+  if (!cooldownMs) {
+    return true;
+  }
+
+  const key = `${tabId}:${effectName}`;
+  const lastAt = surpriseEffectCooldownState.get(key) || 0;
+  if ((Date.now() - lastAt) < cooldownMs) {
+    return false;
+  }
+
+  surpriseEffectCooldownState.set(key, Date.now());
+  return true;
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason !== "install") {
     return;
@@ -22,6 +56,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then((tab) => {
         if (!tab?.id || tab.url?.startsWith("chrome://")) {
           sendResponse({ ok: false });
+          return;
+        }
+
+        if (!shouldDeliverSurprise(tab.id, message.segment?.effect)) {
+          sendResponse({ ok: true, skipped: true });
           return;
         }
 

@@ -2,6 +2,7 @@ let overlayCanvas;
 let overlayContext;
 let fadeTimer;
 let activeMexicanWaveCleanup = null;
+const effectRenderCooldownState = new Map();
 
 function ensureOverlay() {
   if (overlayCanvas) {
@@ -50,6 +51,37 @@ function pagePoint(segmentPoint) {
     x: (segmentPoint.x / 1000) * window.innerWidth,
     y: (segmentPoint.y / 1000) * window.innerHeight
   };
+}
+
+function getEffectRenderCooldownMs(effectName) {
+  if (effectName === "mexicanwave") {
+    return 12_000;
+  }
+
+  if (effectName === "stickerslap") {
+    return 1_400;
+  }
+
+  if (effectName !== "draw") {
+    return 450;
+  }
+
+  return 0;
+}
+
+function shouldRenderEffectNow(effectName) {
+  const cooldownMs = getEffectRenderCooldownMs(effectName);
+  if (!cooldownMs) {
+    return true;
+  }
+
+  const lastAt = effectRenderCooldownState.get(effectName) || 0;
+  if ((Date.now() - lastAt) < cooldownMs) {
+    return false;
+  }
+
+  effectRenderCooldownState.set(effectName, Date.now());
+  return true;
 }
 
 function clearMexicanWaveEffect() {
@@ -592,6 +624,10 @@ function scheduleFade() {
 }
 
 function drawEffect(segment) {
+  if (!shouldRenderEffectNow(segment.effect || "draw")) {
+    return;
+  }
+
   ensureOverlay();
   overlayCanvas.style.opacity = "1";
 
