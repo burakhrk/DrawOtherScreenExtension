@@ -252,6 +252,8 @@ signInButton.addEventListener("click", async () => {
     const session = await signInWithGoogle();
     applySignedInPendingUI(session?.user);
     await refreshBootstrapState();
+    statusText.textContent = "Signed in. Opening your board...";
+    await openBoard();
   } catch (error) {
     suppressNextAuthRefresh = false;
     console.error(error);
