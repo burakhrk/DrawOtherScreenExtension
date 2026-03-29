@@ -88,18 +88,22 @@
 
           <div class="toolbar">
             <button id="openOnboardingButton" class="ghost icon-button" type="button" aria-label="Open tutorial">?</button>
-            <label class="tool tool-stack">
+            <label class="tool tool-stack effect-tool">
               <span>Effect</span>
-              <select id="effectPicker">
-                <option value="draw">Freehand</option>
-                <option value="crack">Broken screen</option>
-                <option value="scribble">Scribble</option>
-                <option value="drip">Paint drip</option>
-                <option value="zap" data-pro="true">Lightning - Pro</option>
-                <option value="heartburst" data-pro="true">Heart burst - Pro</option>
-                <option value="bullet" data-pro="true">Bullet impact - Pro</option>
-                <option value="stickman" data-pro="true">Stickman - Pro</option>
-              </select>
+              <div class="effect-select-shell">
+                <span class="effect-select-icon" aria-hidden="true">✦</span>
+                <select id="effectPicker">
+                  <option value="draw">Freehand</option>
+                  <option value="crack">Broken screen</option>
+                  <option value="scribble">Scribble</option>
+                  <option value="drip">Paint drip</option>
+                  <option value="zap" data-pro="true">Lightning - Pro</option>
+                  <option value="heartburst" data-pro="true">Heart burst - Pro</option>
+                  <option value="bullet" data-pro="true">Bullet impact - Pro</option>
+                  <option value="stickman" data-pro="true">Stickman - Pro</option>
+                </select>
+                <span class="effect-select-caret" aria-hidden="true">▾</span>
+              </div>
             </label>
 
             <label class="tool">
