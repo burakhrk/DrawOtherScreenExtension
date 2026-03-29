@@ -169,7 +169,7 @@ const onboardingSteps = [
 
 function setSignedOutDashboardUI() {
   profileName.textContent = "Open the board first, sign in here";
-  profileAvatar.style.backgroundImage = `url("${getSketchPartyAvatarDataUrl("signed-out", "Sketch Party")}")`;
+  profileAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl("signed-out", "Sketch Party")}")`);
   profileMeta.textContent = "Your party code and friends will appear after sign-in.";
   syncCode.textContent = "-";
   friendCount.textContent = "0 people";
@@ -823,10 +823,10 @@ function renderRequests() {
 
   for (const request of incomingRequests) {
     const card = document.createElement("article");
-    card.className = "request-card";
-    card.innerHTML = `
+      card.className = "request-card";
+      card.innerHTML = `
         <div class="request-identity">
-          <div class="user-avatar" style="background-image:url('${request.avatarUrl}')"></div>
+          <div class="user-avatar" style="--avatar-image:url('${request.avatarUrl}')"></div>
           <div>
             <strong>${request.displayName}</strong>
             <div class="friend-meta">Sent you a friend request.</div>
@@ -842,10 +842,10 @@ function renderRequests() {
 
   for (const request of outgoingRequests) {
     const card = document.createElement("article");
-    card.className = "request-card";
-    card.innerHTML = `
+      card.className = "request-card";
+      card.innerHTML = `
         <div class="request-identity">
-          <div class="user-avatar" style="background-image:url('${request.avatarUrl}')"></div>
+          <div class="user-avatar" style="--avatar-image:url('${request.avatarUrl}')"></div>
           <div>
             <strong>${request.displayName}</strong>
             <div class="friend-meta">Request pending.</div>
@@ -880,7 +880,7 @@ function renderFriends() {
       card.innerHTML = `
         <div class="friend-top">
           <div class="friend-identity">
-            <div class="user-avatar" style="background-image:url('${friend.avatarUrl}')"></div>
+            <div class="user-avatar" style="--avatar-image:url('${friend.avatarUrl}')"></div>
             <div>
               <strong>${friend.displayName}</strong>
               <div class="friend-meta">${online ? "Available now" : "Offline right now"}</div>
@@ -952,7 +952,7 @@ function applySocialState(state) {
   partyCode = createPartyCode(userId);
 
   profileName.textContent = displayName;
-  profileAvatar.style.backgroundImage = `url("${state.user.avatarUrl || getSketchPartyAvatarDataUrl(userId, displayName)}")`;
+  profileAvatar.style.setProperty("--avatar-image", `url("${state.user.avatarUrl || getSketchPartyAvatarDataUrl(userId, displayName)}")`);
   profileNameInput.value = displayName;
   profileMeta.textContent = extensionEnabled
     ? "Ready for quick sends and surprise moments."
@@ -1582,7 +1582,7 @@ async function initialize() {
     "Guest";
   partyCode = createPartyCode(userId);
   profileName.textContent = displayName;
-  profileAvatar.style.backgroundImage = `url("${getSketchPartyAvatarDataUrl(userId, displayName)}")`;
+  profileAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl(userId, displayName)}")`);
   profileNameInput.value = displayName;
   profileMeta.textContent = "Loading your party code and friends...";
   updateSyncCodeUI();

@@ -63,7 +63,7 @@ function applyAvatar(seed, name) {
   accountAvatar.textContent = "";
   accountAvatar.setAttribute("aria-label", label);
   accountAvatar.title = label;
-  accountAvatar.style.backgroundImage = `url("${getSketchPartyAvatarDataUrl(seed || label, label)}")`;
+  accountAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl(seed || label, label)}")`);
 }
 
 function normalizeServerUrl(value) {
