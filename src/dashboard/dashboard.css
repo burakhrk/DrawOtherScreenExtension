@@ -84,10 +84,10 @@ body {
 .topbar,
 .chat-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -140,7 +140,7 @@ h1 {
 .membership-card,
 .pair-form,
 .friends-list-shell {
-  padding: 14px 18px;
+  padding: 14px 16px;
 }
 
 .sync-card {
@@ -170,7 +170,11 @@ h1 {
 .auth-button {
   border: 2px solid rgba(32, 29, 23, 0.08);
   border-radius: 999px;
+  min-height: 44px;
   padding: 11px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
   cursor: pointer;
   color: white;
@@ -189,9 +193,12 @@ h1 {
 }
 
 .membership-actions {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   justify-items: end;
-  gap: 10px;
+  gap: 8px;
+  min-width: 140px;
 }
 
 .membership-pill {
@@ -209,6 +216,7 @@ h1 {
   display: grid;
   gap: 8px;
   border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(255, 247, 236, 0.82));
 }
 
 .profile-form {
@@ -236,7 +244,12 @@ h1 {
 .chat-form button {
   border: 2px solid rgba(32, 29, 23, 0.08);
   border-radius: 999px;
+  min-height: 44px;
   padding: 10px 14px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
   cursor: pointer;
   color: white;
@@ -257,6 +270,7 @@ h1 {
   min-height: 0;
   flex: 1;
   overflow: hidden;
+  gap: 8px;
 }
 
 .friends-list {
@@ -279,7 +293,7 @@ h1 {
 }
 
 .request-card {
-  padding: 10px 12px;
+  padding: 12px 12px;
   border: 2px solid rgba(32, 29, 23, 0.07);
   border-radius: 20px;
   background: linear-gradient(135deg, #fff8ea, #fff1d7);
@@ -295,7 +309,11 @@ h1 {
 .mini-button {
   border: 2px solid rgba(32, 29, 23, 0.07);
   border-radius: 999px;
+  min-height: 36px;
   padding: 7px 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -305,11 +323,13 @@ h1 {
 }
 
 .friend-card {
-  padding: 12px;
+  padding: 14px;
   border: 2px solid rgba(32, 29, 23, 0.07);
   border-radius: 22px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 236, 0.92));
   box-shadow: 0 12px 22px rgba(32, 29, 23, 0.06);
+  display: grid;
+  gap: 12px;
 }
 
 .friend-top,
@@ -321,7 +341,10 @@ h1 {
 }
 
 .friend-actions {
-  margin-top: 10px;
+  margin-top: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .friend-meta {
@@ -390,15 +413,19 @@ h1 {
 }
 
 .mode-button {
-  flex: 1;
   border: 2px solid rgba(32, 29, 23, 0.07);
-  border-radius: 16px;
+  border-radius: 18px;
+  min-height: 44px;
   padding: 11px 10px;
   cursor: pointer;
   background: linear-gradient(180deg, #fff6ea, #f8dfc5);
   color: var(--ink);
   font-weight: 700;
   box-shadow: 0 8px 12px rgba(32, 29, 23, 0.05);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .mode-button.pro-lock {
@@ -413,7 +440,7 @@ h1 {
 
 .toolbar {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 12px;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -421,15 +448,25 @@ h1 {
 
 .icon-button {
   min-width: 44px;
+  min-height: 44px;
   padding-inline: 0;
   justify-content: center;
 }
 
 .tool {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  min-height: 74px;
+  padding: 10px 12px;
+  border: 2px solid rgba(32, 29, 23, 0.08);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 226, 200, 0.82));
+  box-shadow: 0 8px 14px rgba(32, 29, 23, 0.05);
+  font-size: 12px;
+  font-weight: 700;
   color: var(--muted);
 }
 
@@ -447,8 +484,9 @@ h1 {
   display: flex;
   align-items: center;
   min-width: 210px;
+  min-height: 44px;
   padding: 0 12px 0 10px;
-  border: 2px solid rgba(32, 29, 23, 0.1);
+  border: 2px solid rgba(32, 29, 23, 0.08);
   border-radius: 18px;
   background:
     radial-gradient(circle at 14% 24%, rgba(255, 208, 91, 0.28), transparent 24%),
@@ -481,7 +519,18 @@ h1 {
 }
 
 .tool input[type="range"] {
-  width: 92px;
+  width: 104px;
+  accent-color: var(--accent);
+}
+
+.tool input[type="color"] {
+  width: 52px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid rgba(32, 29, 23, 0.08);
+  border-radius: 14px;
+  background: white;
+  cursor: pointer;
 }
 
 .tool select {
@@ -508,7 +557,11 @@ h1 {
 .ghost {
   border: 2px solid rgba(32, 29, 23, 0.08);
   border-radius: 999px;
+  min-height: 44px;
   padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
   cursor: pointer;
   color: var(--ink);
@@ -794,6 +847,7 @@ h1 {
   border-radius: 22px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.8);
+  line-height: 1.45;
 }
 
 .auth-button:hover,
@@ -872,6 +926,10 @@ h1 {
   .chat-panel {
     grid-column: 1 / -1;
     min-height: 320px;
+  }
+
+  .toolbar {
+    justify-content: flex-start;
   }
 }
 
