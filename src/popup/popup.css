@@ -198,6 +198,9 @@ h2 {
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, #211d18, #5c4333);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: #fff;
   font-size: 17px;
   font-weight: 800;

@@ -1,4 +1,5 @@
 import { APP_ID } from "./constants.js";
+import { getSketchPartyAvatarDataUrl } from "./avatar.js";
 import { track } from "./analytics.js";
 import { getBestDisplayName, getCurrentUser } from "./auth.js";
 import { resolveEntitlement } from "./entitlements.js";
@@ -30,7 +31,7 @@ function enrichState(rawState, user) {
       id: item.id,
       userId: item.requester_id,
       displayName: item.profile?.display_name || "Sketch Party user",
-      avatarUrl: item.profile?.avatar_url || null,
+      avatarUrl: getSketchPartyAvatarDataUrl(item.requester_id, item.profile?.display_name || "Sketch Party user"),
       status: item.status,
       createdAt: item.created_at,
     };
@@ -41,7 +42,7 @@ function enrichState(rawState, user) {
       id: item.id,
       userId: item.recipient_id,
       displayName: item.profile?.display_name || "Sketch Party user",
-      avatarUrl: item.profile?.avatar_url || null,
+      avatarUrl: getSketchPartyAvatarDataUrl(item.recipient_id, item.profile?.display_name || "Sketch Party user"),
       status: item.status,
       createdAt: item.created_at,
     };
@@ -52,7 +53,7 @@ function enrichState(rawState, user) {
       friendshipId: item.friendship_id,
       userId: item.friend_user_id,
       displayName: item.profile?.display_name || "Sketch Party user",
-      avatarUrl: item.profile?.avatar_url || null,
+      avatarUrl: getSketchPartyAvatarDataUrl(item.friend_user_id, item.profile?.display_name || "Sketch Party user"),
       createdAt: item.created_at,
       online: item.visible_online === true,
       preferences: {
@@ -69,7 +70,7 @@ function enrichState(rawState, user) {
       id: user.id,
       email: user.email || "",
       displayName: profileName,
-      avatarUrl: ownProfile?.avatar_url || user.user_metadata?.avatar_url || null,
+      avatarUrl: getSketchPartyAvatarDataUrl(user.id, profileName),
     },
     entitlement: resolveEntitlement(user),
     preferences: {

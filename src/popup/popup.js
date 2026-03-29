@@ -1,4 +1,5 @@
 import { track } from "../lib/analytics.js";
+import { getSketchPartyAvatarDataUrl } from "../lib/avatar.js";
 import { getCurrentUser, onAuthStateChange, signInWithGoogle, signOut } from "../lib/auth.js";
 import {
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
@@ -55,6 +56,14 @@ function avatarFromName(name) {
   const safe = (name || "SP").trim();
   const parts = safe.split(/\s+/).filter(Boolean).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "SP";
+}
+
+function applyAvatar(seed, name) {
+  const label = name || "Sketch Party";
+  accountAvatar.textContent = "";
+  accountAvatar.setAttribute("aria-label", label);
+  accountAvatar.title = label;
+  accountAvatar.style.backgroundImage = `url("${getSketchPartyAvatarDataUrl(seed || label, label)}")`;
 }
 
 function normalizeServerUrl(value) {
@@ -127,7 +136,7 @@ function applySignedInPendingUI(user) {
 
   accountTitle.textContent = displayName;
   accountSubtitle.textContent = user?.email || "Your account is connected. Loading your Sketch Party state...";
-  accountAvatar.textContent = avatarFromName(displayName);
+  applyAvatar(user?.id || user?.email || displayName, displayName);
   accountStatePill.textContent = "Signed in";
   accountStatePill.style.background = "var(--success)";
   onlinePresenceToggle.checked = true;
@@ -184,7 +193,7 @@ async function applyBootstrapState(state) {
   if (!state) {
     accountTitle.textContent = "Sketch Party";
     accountSubtitle.textContent = "";
-    accountAvatar.textContent = "SP";
+    applyAvatar("popup-signed-out", "Sketch Party");
     accountStatePill.textContent = "Not ready";
     accountStatePill.style.background = "#f3e5d5";
     onlinePresenceToggle.checked = false;
@@ -205,7 +214,7 @@ async function applyBootstrapState(state) {
   allowSurpriseInput.checked = state.preferences.allowSurprise;
   accountTitle.textContent = state.user.displayName;
   accountSubtitle.textContent = state.user.email || "Your Sketch Party account is connected.";
-  accountAvatar.textContent = avatarFromName(state.user.displayName);
+  applyAvatar(state.user.id || state.user.displayName, state.user.displayName);
   accountStatePill.textContent = state.preferences.extensionEnabled
     ? (state.preferences.appearOnline ? "Online" : "Hidden")
     : "Inactive";

@@ -1,4 +1,5 @@
 import { track } from "../lib/analytics.js";
+import { getSketchPartyAvatarDataUrl } from "../lib/avatar.js";
 import {
   DASHBOARD_ONBOARDING_SEEN_KEY,
   FRIEND_ONLINE_NOTIFICATION_KEY,
@@ -31,6 +32,7 @@ const socialRefreshIntervalMs = 7000;
 
 const layout = document.getElementById("layout");
 const profileName = document.getElementById("profileName");
+const profileAvatar = document.getElementById("profileAvatar");
 const profileMeta = document.getElementById("profileMeta");
 const globalStatus = document.getElementById("globalStatus");
 const syncCode = document.getElementById("syncCode");
@@ -167,6 +169,7 @@ const onboardingSteps = [
 
 function setSignedOutDashboardUI() {
   profileName.textContent = "Open the board first, sign in here";
+  profileAvatar.style.backgroundImage = `url("${getSketchPartyAvatarDataUrl("signed-out", "Sketch Party")}")`;
   profileMeta.textContent = "Your party code and friends will appear after sign-in.";
   syncCode.textContent = "-";
   friendCount.textContent = "0 people";
@@ -822,13 +825,18 @@ function renderRequests() {
     const card = document.createElement("article");
     card.className = "request-card";
     card.innerHTML = `
-      <strong>${request.displayName}</strong>
-      <div class="friend-meta">Sent you a friend request.</div>
-      <div class="request-actions">
-        <button class="mini-button" data-action="accept" data-request-id="${request.id}">Accept</button>
-        <button class="mini-button" data-action="reject" data-request-id="${request.id}">Reject</button>
-      </div>
-    `;
+        <div class="request-identity">
+          <div class="user-avatar" style="background-image:url('${request.avatarUrl}')"></div>
+          <div>
+            <strong>${request.displayName}</strong>
+            <div class="friend-meta">Sent you a friend request.</div>
+          </div>
+        </div>
+        <div class="request-actions">
+          <button class="mini-button" data-action="accept" data-request-id="${request.id}">Accept</button>
+          <button class="mini-button" data-action="reject" data-request-id="${request.id}">Reject</button>
+        </div>
+      `;
     requestList.appendChild(card);
   }
 
@@ -836,11 +844,16 @@ function renderRequests() {
     const card = document.createElement("article");
     card.className = "request-card";
     card.innerHTML = `
-      <strong>${request.displayName}</strong>
-      <div class="friend-meta">Request pending.</div>
-    `;
-    requestList.appendChild(card);
-  }
+        <div class="request-identity">
+          <div class="user-avatar" style="background-image:url('${request.avatarUrl}')"></div>
+          <div>
+            <strong>${request.displayName}</strong>
+            <div class="friend-meta">Request pending.</div>
+          </div>
+        </div>
+      `;
+      requestList.appendChild(card);
+    }
 }
 
 function renderFriends() {
@@ -864,14 +877,17 @@ function renderFriends() {
     const draftDisabled = draftSegments.length > 0 && online ? "" : "disabled";
     const liveLocked = !entitlement?.isPro;
 
-    card.innerHTML = `
-      <div class="friend-top">
-        <div>
-          <strong>${friend.displayName}</strong>
-          <div class="friend-meta">${online ? "Available now" : "Offline right now"}</div>
-        </div>
-        <span class="status-dot ${online ? "online" : ""}">
-          ${online ? "Online" : "Offline"}
+      card.innerHTML = `
+        <div class="friend-top">
+          <div class="friend-identity">
+            <div class="user-avatar" style="background-image:url('${friend.avatarUrl}')"></div>
+            <div>
+              <strong>${friend.displayName}</strong>
+              <div class="friend-meta">${online ? "Available now" : "Offline right now"}</div>
+            </div>
+          </div>
+          <span class="status-dot ${online ? "online" : ""}">
+            ${online ? "Online" : "Offline"}
         </span>
       </div>
       <div class="friend-actions">
@@ -936,6 +952,7 @@ function applySocialState(state) {
   partyCode = createPartyCode(userId);
 
   profileName.textContent = displayName;
+  profileAvatar.style.backgroundImage = `url("${state.user.avatarUrl || getSketchPartyAvatarDataUrl(userId, displayName)}")`;
   profileNameInput.value = displayName;
   profileMeta.textContent = extensionEnabled
     ? "Ready for quick sends and surprise moments."
@@ -1565,6 +1582,7 @@ async function initialize() {
     "Guest";
   partyCode = createPartyCode(userId);
   profileName.textContent = displayName;
+  profileAvatar.style.backgroundImage = `url("${getSketchPartyAvatarDataUrl(userId, displayName)}")`;
   profileNameInput.value = displayName;
   profileMeta.textContent = "Loading your party code and friends...";
   updateSyncCodeUI();

@@ -88,6 +88,12 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   font-size: 12px;
@@ -288,6 +294,38 @@ h2 {
   margin-top: 4px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.user-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+  border: 2px solid rgba(32, 29, 23, 0.08);
+  background-color: #fff8ef;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 10px 18px rgba(32, 29, 23, 0.08);
+  flex: 0 0 auto;
+}
+
+.profile-avatar {
+  width: 62px;
+  height: 62px;
+  border-radius: 22px;
+}
+
+.friend-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.request-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .status-dot {
