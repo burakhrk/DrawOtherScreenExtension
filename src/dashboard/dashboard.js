@@ -295,7 +295,7 @@ function updateInboxUI() {
   const shouldShowDock = unreadMessageCount > 0 || hasDirectMessages || Boolean(pendingTextTarget);
   layout.classList.toggle("chat-collapsed", !chatPanelOpen);
   chatPanel.classList.toggle("hidden", !chatPanelOpen);
-  inboxDock.classList.toggle("hidden", !shouldShowDock);
+  inboxDock.classList.toggle("hidden", !shouldShowDock || chatPanelOpen);
   inboxDock.querySelector(".inbox-dock-label").textContent = latestMessagePreview || "Messages";
   inboxDockBadge.textContent = String(unreadMessageCount);
   inboxDockBadge.classList.toggle("hidden", unreadMessageCount === 0);
