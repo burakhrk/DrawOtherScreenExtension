@@ -15,6 +15,7 @@ import { getAccessToken, getCurrentUser, signInWithGoogle } from "../lib/auth.js
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import { getEntitlementBadge } from "../lib/entitlements.js";
 import { createPartyCode, isPartyCode, isUuidLike, normalizePartyIdentifier } from "../lib/party-code.js";
+import { getLocalPreferences, saveLocalPreferences, updateStoredProfile } from "../lib/preferences.js";
 import { supabase } from "../lib/supabase-client.js";
 import {
   acceptFriendRequest,
@@ -114,6 +115,58 @@ let hasDirectMessages = false;
 let onboardingStep = 0;
 let isGuestMode = false;
 
+function applyRuntimePreferences(nextPreferences, { updateStatus = true } = {}) {
+  extensionEnabled = nextPreferences.extensionEnabled !== false;
+  appearOnline = nextPreferences.appearOnline !== false;
+  allowSurprise = nextPreferences.allowSurprise !== false;
+
+  if (!updateStatus) {
+    return;
+  }
+
+  if (isGuestMode) {
+    profileMeta.textContent = extensionEnabled
+      ? "Guest mode is live. You can pair with a party code now, or sign in later to save friends."
+      : "Guest mode is paused. Turn Sketch Party back on in the popup to receive sessions.";
+    setGlobalStatus(appearOnline && extensionEnabled ? "Guest online" : "Guest", appearOnline && extensionEnabled);
+    return;
+  }
+
+  profileMeta.textContent = extensionEnabled
+    ? "Ready for quick sends and surprise moments."
+    : "Inactive mode. Friends will see you as unavailable.";
+  setGlobalStatus(appearOnline && extensionEnabled ? "Online" : "Inactive", appearOnline && extensionEnabled);
+}
+
+async function syncLivePreferencesFromStorage(nextPreferences) {
+  applyRuntimePreferences(nextPreferences);
+
+  if (socket?.readyState !== WebSocket.OPEN) {
+    return;
+  }
+
+  try {
+    const accessToken = isGuestMode ? null : await getAccessToken();
+    send({
+      type: "register-user",
+      userId,
+      clientId,
+      displayName,
+      accessToken,
+      guest: isGuestMode,
+      preferences: {
+        extensionEnabled,
+        appearOnline,
+        allowSurprise,
+      },
+    });
+    setStatus("Preferences synced", "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "Preferences could not be synced");
+  }
+}
+
 const onboardingSteps = [
   {
     title: "Draw something fun",
@@ -192,7 +245,9 @@ async function getOrCreateGuestIdentity() {
 function setSignedOutDashboardUI() {
   profileName.textContent = displayName || "Guest";
   profileAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl(userId || "signed-out", displayName || "Sketch Party")}")`);
-  profileMeta.textContent = "Guest mode is live. You can pair with a party code now, or sign in later to save friends.";
+  profileMeta.textContent = extensionEnabled
+    ? "Guest mode is live. You can pair with a party code now, or sign in later to save friends."
+    : "Guest mode is paused. Turn Sketch Party back on in the popup to receive sessions.";
   syncCode.textContent = partyCode || "-";
   friendCount.textContent = "Guest sessions";
   requestList.innerHTML = "";
@@ -214,7 +269,7 @@ function setSignedOutDashboardUI() {
   sendDraftButton.disabled = draftSegments.length === 0;
   leaveSessionButton.disabled = true;
   chatInput.disabled = true;
-  setGlobalStatus(appearOnline && extensionEnabled ? "Guest online" : "Guest");
+  setGlobalStatus(appearOnline && extensionEnabled ? "Guest online" : "Guest", appearOnline && extensionEnabled);
   setStatus("Guest mode ready");
   drawGuard.classList.remove("hidden");
   drawGuard.innerHTML = `
@@ -968,9 +1023,7 @@ function applySocialState(state) {
 
   userId = state.user.id;
   displayName = state.user.displayName;
-  extensionEnabled = state.preferences.extensionEnabled;
-  appearOnline = state.preferences.appearOnline;
-  allowSurprise = state.preferences.allowSurprise;
+  applyRuntimePreferences(state.preferences, { updateStatus: false });
   entitlement = state.entitlement;
   friends = state.friends;
   incomingRequests = state.incomingRequests;
@@ -980,9 +1033,6 @@ function applySocialState(state) {
   profileName.textContent = displayName;
   profileAvatar.style.setProperty("--avatar-image", `url("${state.user.avatarUrl || getSketchPartyAvatarDataUrl(userId, displayName)}")`);
   profileNameInput.value = displayName;
-  profileMeta.textContent = extensionEnabled
-    ? "Ready for quick sends and surprise moments."
-    : "Inactive mode. Friends will see you as unavailable.";
   updateSyncCodeUI();
 
   setSignedInDashboardUI();
@@ -991,7 +1041,8 @@ function applySocialState(state) {
   renderRequests();
   renderFriends();
   updateSessionUI();
-  setGlobalStatus(appearOnline && extensionEnabled ? "Online" : "Inactive", appearOnline && extensionEnabled);
+  applyRuntimePreferences(state.preferences);
+  void saveLocalPreferences(state.preferences);
 }
 
 async function refreshSocialState({ silent = true } = {}) {
@@ -1396,9 +1447,7 @@ profileForm.addEventListener("submit", async (event) => {
 
   try {
     if (isGuestMode) {
-      const localProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
-      await setLocalObject(PROFILE_STORAGE_KEY, {
-        ...localProfile,
+      await updateStoredProfile({
         guestName: nextName,
       });
       displayName = nextName;
@@ -1656,6 +1705,7 @@ async function initialize() {
 
   resizeCanvas();
   updateSessionUI();
+  applyRuntimePreferences(await getLocalPreferences(), { updateStatus: false });
   setStatus("Loading account...");
   setGlobalStatus("Connecting");
   void openOnboarding();
@@ -1752,6 +1802,28 @@ window.addEventListener("beforeunload", () => {
     clearInterval(socialRefreshTimer);
     socialRefreshTimer = null;
   }
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local") {
+    return;
+  }
+
+  const profileChange = changes[PROFILE_STORAGE_KEY];
+  const nextPreferences = profileChange?.newValue?.preferences;
+  if (!nextPreferences) {
+    return;
+  }
+
+  if (
+    nextPreferences.extensionEnabled === extensionEnabled &&
+    nextPreferences.appearOnline === appearOnline &&
+    nextPreferences.allowSurprise === allowSurprise
+  ) {
+    return;
+  }
+
+  void syncLivePreferencesFromStorage(nextPreferences);
 });
 
 

@@ -9,6 +9,7 @@ import {
   PROFILE_STORAGE_KEY,
 } from "../lib/constants.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
+import { getLocalPreferences, saveLocalPreferences, updateStoredProfile } from "../lib/preferences.js";
 import { bootstrap, setPreferences } from "../lib/sketch-party-social-client.js";
 
 const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
@@ -97,7 +98,6 @@ function toggleAuthenticatedUI(isAuthenticated) {
   setGuardedState(openBoardButton, false);
   setGuardedState(openWithMessageButton, !isAuthenticated);
   setGuardedState(sendEffectButton, !isAuthenticated);
-  onlinePresenceToggle.disabled = !isAuthenticated;
   quickEffectSelect.disabled = false;
   signInButton.classList.toggle("hidden", isAuthenticated);
   signOutButton.classList.toggle("hidden", !isAuthenticated);
@@ -188,11 +188,9 @@ async function openPaywall() {
 }
 
 async function openBoard(quickAction = null) {
-  const storedProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
   const serverUrl = normalizeServerUrl(serverUrlInput.value);
 
-  await setLocalObject(PROFILE_STORAGE_KEY, {
-    ...storedProfile,
+  await updateStoredProfile({
     serverUrl,
   });
 
@@ -212,6 +210,8 @@ async function applyBootstrapState(state) {
   currentState = state;
   const notificationsEnabled = await getLocalObject(FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY, false);
   friendOnlineNotificationsInput.checked = Boolean(notificationsEnabled);
+  const localProfile = await getLocalObject(PROFILE_STORAGE_KEY, {});
+  const localPreferences = await getLocalPreferences();
 
   if (!state) {
     accountTitle.textContent = "Sketch Party";
@@ -219,10 +219,12 @@ async function applyBootstrapState(state) {
     applyAvatar("popup-signed-out", "Sketch Party");
     accountStatePill.textContent = "Not ready";
     accountStatePill.style.background = "#f3e5d5";
-    onlinePresenceToggle.checked = false;
+    extensionEnabledInput.checked = localPreferences.extensionEnabled;
+    onlinePresenceToggle.checked = localPreferences.appearOnline;
+    allowSurpriseInput.checked = localPreferences.allowSurprise;
     statusText.textContent = "Open the board anytime or sign in here.";
     popupPartyCode.textContent = "-";
-    serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
+    serverUrlInput.value = localProfile?.serverUrl || DEFAULT_SERVER_URL;
     syncEffectEntitlementUI(null);
     accountCard.classList.add("is-signed-out-minimal");
     accountCard.classList.remove("is-signed-in-minimal");
@@ -231,11 +233,11 @@ async function applyBootstrapState(state) {
     return;
   }
 
-  const localProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
   serverUrlInput.value = localProfile.serverUrl || DEFAULT_SERVER_URL;
   extensionEnabledInput.checked = state.preferences.extensionEnabled;
   onlinePresenceToggle.checked = state.preferences.appearOnline;
   allowSurpriseInput.checked = state.preferences.allowSurprise;
+  await saveLocalPreferences(state.preferences);
   accountTitle.textContent = state.user.displayName;
   accountSubtitle.textContent = state.user.email || "Your Sketch Party account is connected.";
   applyAvatar(state.user.id || state.user.displayName, state.user.displayName);
@@ -279,16 +281,21 @@ async function refreshBootstrapState() {
 }
 
 async function updatePreferenceState() {
-  if (!currentState) {
-    return;
-  }
-
   try {
-    const state = await setPreferences({
+    const nextPreferences = {
       extensionEnabled: extensionEnabledInput.checked,
       appearOnline: onlinePresenceToggle.checked,
       allowSurprise: allowSurpriseInput.checked,
-    });
+    };
+
+    await saveLocalPreferences(nextPreferences);
+
+    if (!currentState) {
+      statusText.textContent = "Guest preferences saved for your board.";
+      return;
+    }
+
+    const state = await setPreferences(nextPreferences);
     await applyBootstrapState(state);
   } catch (error) {
     console.error(error);
