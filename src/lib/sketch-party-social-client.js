@@ -3,6 +3,7 @@ import { getSketchPartyAvatarDataUrl } from "./avatar.js";
 import { track } from "./analytics.js";
 import { getBestDisplayName, getCurrentUser } from "./auth.js";
 import { resolveEntitlement } from "./entitlements.js";
+import { createPartyCode } from "./party-code.js";
 import { supabase } from "./supabase-client.js";
 
 function toFriendlyError(error) {
@@ -23,37 +24,44 @@ async function rpc(fn, args = {}) {
   return data;
 }
 
+function getPartyLabel(userId, displayName) {
+  return displayName || `Party ${createPartyCode(userId)}`;
+}
+
 function enrichState(rawState, user) {
   const ownProfile = rawState.own_profile ?? null;
   const profileName = getBestDisplayName(user, ownProfile);
   const incomingRequests = (rawState.incoming_requests ?? []).map((item) => {
+    const displayName = getPartyLabel(item.requester_id, item.profile?.display_name || null);
     return {
       id: item.id,
       userId: item.requester_id,
-      displayName: item.profile?.display_name || "Sketch Party user",
-      avatarUrl: getSketchPartyAvatarDataUrl(item.requester_id, item.profile?.display_name || "Sketch Party user"),
+      displayName,
+      avatarUrl: getSketchPartyAvatarDataUrl(item.requester_id, displayName),
       status: item.status,
       createdAt: item.created_at,
     };
   });
 
   const outgoingRequests = (rawState.outgoing_requests ?? []).map((item) => {
+    const displayName = getPartyLabel(item.recipient_id, item.profile?.display_name || null);
     return {
       id: item.id,
       userId: item.recipient_id,
-      displayName: item.profile?.display_name || "Sketch Party user",
-      avatarUrl: getSketchPartyAvatarDataUrl(item.recipient_id, item.profile?.display_name || "Sketch Party user"),
+      displayName,
+      avatarUrl: getSketchPartyAvatarDataUrl(item.recipient_id, displayName),
       status: item.status,
       createdAt: item.created_at,
     };
   });
 
   const friends = (rawState.accepted_friends ?? []).map((item) => {
+    const displayName = getPartyLabel(item.friend_user_id, item.profile?.display_name || null);
     return {
       friendshipId: item.friendship_id,
       userId: item.friend_user_id,
-      displayName: item.profile?.display_name || "Sketch Party user",
-      avatarUrl: getSketchPartyAvatarDataUrl(item.friend_user_id, item.profile?.display_name || "Sketch Party user"),
+      displayName,
+      avatarUrl: getSketchPartyAvatarDataUrl(item.friend_user_id, displayName),
       createdAt: item.created_at,
       online: item.visible_online === true,
       preferences: {

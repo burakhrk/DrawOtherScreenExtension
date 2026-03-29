@@ -1,5 +1,6 @@
 import { APP_ID } from "./constants.js";
 import { track } from "./analytics.js";
+import { createPartyCode } from "./party-code.js";
 import { supabase } from "./supabase-client.js";
 
 function getDisplayName(user, ownProfile = null) {
@@ -7,7 +8,7 @@ function getDisplayName(user, ownProfile = null) {
     ownProfile?.display_name ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
-    user?.email ||
+    (user?.id ? `Party ${createPartyCode(user.id)}` : null) ||
     "Guest"
   );
 }
