@@ -61,6 +61,14 @@ body {
   overflow: hidden;
 }
 
+.panel-head,
+.sync-card,
+.auth-card,
+.sidebar-tools,
+.membership-card {
+  flex-shrink: 0;
+}
+
 .stage {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -284,8 +292,8 @@ h1 {
 .friends-list-shell {
   display: grid;
   grid-template-rows: auto auto auto auto 1fr;
-  min-height: 0;
-  flex: 1;
+  min-height: 220px;
+  flex: 1 1 auto;
   overflow: hidden;
   gap: 8px;
   padding-bottom: 10px;
