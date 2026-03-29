@@ -1,5 +1,5 @@
 import { track } from "../lib/analytics.js";
-import { onAuthStateChange, signInWithGoogle, signOut } from "../lib/auth.js";
+import { getCurrentUser, onAuthStateChange, signInWithGoogle, signOut } from "../lib/auth.js";
 import {
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
   QUICK_ACTION_KEY,
@@ -20,9 +20,9 @@ const QUICK_EFFECTS = {
 
 const form = document.getElementById("session-form");
 const accountCard = document.getElementById("accountCard");
+const onlinePresenceToggle = document.getElementById("onlinePresenceToggle");
 const serverUrlInput = document.getElementById("serverUrl");
 const extensionEnabledInput = document.getElementById("extensionEnabled");
-const appearOnlineInput = document.getElementById("appearOnline");
 const allowSurpriseInput = document.getElementById("allowSurprise");
 const friendOnlineNotificationsInput = document.getElementById("friendOnlineNotifications");
 const quickMessageInput = document.getElementById("quickMessage");
@@ -69,6 +69,7 @@ function toggleAuthenticatedUI(isAuthenticated) {
   setGuardedState(openBoardButton, !isAuthenticated);
   setGuardedState(openWithMessageButton, !isAuthenticated);
   setGuardedState(sendEffectButton, !isAuthenticated);
+  onlinePresenceToggle.disabled = !isAuthenticated;
   quickEffectSelect.disabled = false;
   signInButton.classList.toggle("hidden", isAuthenticated);
   signOutButton.classList.toggle("hidden", !isAuthenticated);
@@ -121,6 +122,7 @@ function applySignedInPendingUI(user) {
   accountAvatar.textContent = avatarFromName(displayName);
   accountStatePill.textContent = "Signed in";
   accountStatePill.style.background = "var(--success)";
+  onlinePresenceToggle.checked = true;
   statusText.textContent = "Finishing setup and loading your friends...";
   accountCard.classList.add("is-signed-in-minimal");
   syncEffectEntitlementUI(null);
@@ -176,6 +178,7 @@ async function applyBootstrapState(state) {
     accountAvatar.textContent = "SP";
     accountStatePill.textContent = "Not ready";
     accountStatePill.style.background = "#f3e5d5";
+    onlinePresenceToggle.checked = false;
     statusText.textContent = "Sign in first, then open your board.";
     serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
     syncEffectEntitlementUI(null);
@@ -188,7 +191,7 @@ async function applyBootstrapState(state) {
   const localProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
   serverUrlInput.value = localProfile.serverUrl || DEFAULT_SERVER_URL;
   extensionEnabledInput.checked = state.preferences.extensionEnabled;
-  appearOnlineInput.checked = state.preferences.appearOnline;
+  onlinePresenceToggle.checked = state.preferences.appearOnline;
   allowSurpriseInput.checked = state.preferences.allowSurprise;
   accountTitle.textContent = state.user.displayName;
   accountSubtitle.textContent = state.user.email || "Your Sketch Party account is connected.";
@@ -208,11 +211,22 @@ async function applyBootstrapState(state) {
 
 async function refreshBootstrapState() {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      await applyBootstrapState(null);
+      return;
+    }
+
     const state = await bootstrap();
     await applyBootstrapState(state);
   } catch (error) {
     console.error(error);
     statusText.textContent = error.message || "Account state could not be loaded.";
+    const user = await getCurrentUser().catch(() => null);
+    if (!user) {
+      await applyBootstrapState(null);
+      return;
+    }
     toggleAuthenticatedUI(false);
   }
 }
@@ -225,7 +239,7 @@ async function updatePreferenceState() {
   try {
     const state = await setPreferences({
       extensionEnabled: extensionEnabledInput.checked,
-      appearOnline: appearOnlineInput.checked,
+      appearOnline: onlinePresenceToggle.checked,
       allowSurprise: allowSurpriseInput.checked,
     });
     await applyBootstrapState(state);
@@ -352,7 +366,8 @@ extensionEnabledInput.addEventListener("change", () => {
   void updatePreferenceState();
 });
 
-appearOnlineInput.addEventListener("change", () => {
+onlinePresenceToggle.addEventListener("change", () => {
+  appearOnlineInput.checked = onlinePresenceToggle.checked;
   void updatePreferenceState();
 });
 

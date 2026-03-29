@@ -18,6 +18,12 @@
       </section>
 
       <section id="accountCard" class="account-card">
+        <div class="account-topbar">
+          <label class="mini-toggle">
+            <span>Online</span>
+            <input id="onlinePresenceToggle" type="checkbox" checked />
+          </label>
+        </div>
         <div class="account-main">
           <div id="accountAvatar" class="account-avatar">SP</div>
           <div class="account-copy">
@@ -95,14 +101,6 @@
                   <p>When disabled, you appear unavailable and cannot receive new sessions.</p>
                 </div>
                 <input id="extensionEnabled" type="checkbox" checked />
-              </label>
-
-              <label class="toggle-row">
-                <div>
-                  <strong>Appear online</strong>
-                  <p>When off, you appear offline in friend lists.</p>
-                </div>
-                <input id="appearOnline" type="checkbox" checked />
               </label>
 
               <label class="toggle-row">
