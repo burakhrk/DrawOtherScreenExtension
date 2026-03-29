@@ -32,9 +32,8 @@ const serverUrlInput = document.getElementById("serverUrl");
 const extensionEnabledInput = document.getElementById("extensionEnabled");
 const allowSurpriseInput = document.getElementById("allowSurprise");
 const friendOnlineNotificationsInput = document.getElementById("friendOnlineNotifications");
-const quickMessageInput = document.getElementById("quickMessage");
+const quickFriendSelect = document.getElementById("quickFriendSelect");
 const quickEffectSelect = document.getElementById("quickEffect");
-const openWithMessageButton = document.getElementById("openWithMessage");
 const sendEffectButton = document.getElementById("sendEffectButton");
 const accountTitle = document.getElementById("accountTitle");
 const accountSubtitle = document.getElementById("accountSubtitle");
@@ -96,8 +95,8 @@ function setGuardedState(element, guarded) {
 function toggleAuthenticatedUI(isAuthenticated) {
   form.classList.toggle("is-disabled", !isAuthenticated);
   setGuardedState(openBoardButton, false);
-  setGuardedState(openWithMessageButton, !isAuthenticated);
   setGuardedState(sendEffectButton, !isAuthenticated);
+  quickFriendSelect.disabled = !isAuthenticated;
   quickEffectSelect.disabled = false;
   signInButton.classList.toggle("hidden", isAuthenticated);
   signOutButton.classList.toggle("hidden", !isAuthenticated);
@@ -115,6 +114,18 @@ function updateQuickActionsVisibility(friendCount) {
   const hasFriends = friendCount > 0;
   quickActionsBlock.classList.toggle("hidden", !hasFriends);
   noFriendsHint.classList.toggle("hidden", hasFriends);
+  quickFriendSelect.disabled = !hasFriends;
+}
+
+function renderQuickFriendOptions(friends = []) {
+  quickFriendSelect.innerHTML = '<option value="">Choose a friend</option>';
+
+  for (const friend of friends) {
+    const option = document.createElement("option");
+    option.value = friend.userId;
+    option.textContent = friend.displayName;
+    quickFriendSelect.appendChild(option);
+  }
 }
 
 function syncEffectEntitlementUI(entitlement) {
@@ -168,6 +179,7 @@ function applySignedInPendingUI(user) {
   accountCard.classList.add("is-signed-in-minimal");
   syncEffectEntitlementUI(null);
   updateQuickActionsVisibility(0);
+  renderQuickFriendOptions([]);
   toggleAuthenticatedUI(true);
 }
 
@@ -229,6 +241,7 @@ async function applyBootstrapState(state) {
     accountCard.classList.add("is-signed-out-minimal");
     accountCard.classList.remove("is-signed-in-minimal");
     updateQuickActionsVisibility(0);
+    renderQuickFriendOptions([]);
     toggleAuthenticatedUI(false);
     return;
   }
@@ -255,6 +268,7 @@ async function applyBootstrapState(state) {
   accountCard.classList.remove("is-signed-out-minimal");
   accountCard.classList.add("is-signed-in-minimal");
   updateQuickActionsVisibility(state.friends.length);
+  renderQuickFriendOptions(state.friends);
   toggleAuthenticatedUI(true);
 }
 
@@ -378,28 +392,15 @@ openBoardButton.addEventListener("click", async () => {
   await openBoard();
 });
 
-openWithMessageButton.addEventListener("click", async () => {
-  if (!currentState) {
-    statusText.textContent = "Sign in with Google first.";
-    return;
-  }
-
-  const text = quickMessageInput.value.trim();
-  if (!text) {
-    statusText.textContent = "Type a message first.";
-    return;
-  }
-
-  await openBoard({
-    type: "message",
-    text,
-    label: "Quick message",
-  });
-});
-
 sendEffectButton.addEventListener("click", async () => {
   if (!currentState) {
     statusText.textContent = "Sign in with Google first.";
+    return;
+  }
+
+  const targetUserId = quickFriendSelect.value;
+  if (!targetUserId) {
+    statusText.textContent = "Choose a friend first.";
     return;
   }
 
@@ -417,6 +418,7 @@ sendEffectButton.addEventListener("click", async () => {
 
   await openBoard({
     type: "effect",
+    targetUserId,
     effect: selected.effect,
     color: selected.color,
     size: selected.size,

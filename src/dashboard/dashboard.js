@@ -1127,6 +1127,17 @@ async function applyQuickAction() {
 
     drawSegment(segment);
     storeDraft(segment);
+
+    if (action.targetUserId) {
+      pendingDraftTarget = { userId: action.targetUserId };
+      addMessage({
+        system: true,
+        text: `${action.label || action.effect} was queued for your selected friend. Starting a send session now.`,
+      });
+      void handleSessionStart(action.targetUserId, "send");
+      return;
+    }
+
     addMessage({
       system: true,
       text: `${action.label || action.effect} was added as a quick draft.`,
