@@ -59,6 +59,11 @@ function drawCrack(segment) {
   overlayContext.strokeStyle = hexToRgba(segment.color, 0.92);
   overlayContext.lineWidth = Math.max(1, segment.size * 0.45);
 
+  overlayContext.beginPath();
+  overlayContext.arc(center.x, center.y, baseRadius * 0.22, 0, Math.PI * 2);
+  overlayContext.fillStyle = hexToRgba("#ffffff", 0.16);
+  overlayContext.fill();
+
   for (let index = 0; index < 10; index += 1) {
     const angle = (Math.PI * 2 * index) / 10 + ((segment.seed || 0) * 0.35);
     const radius = baseRadius * (0.75 + ((index % 4) * 0.17));
@@ -69,6 +74,13 @@ function drawCrack(segment) {
     overlayContext.moveTo(center.x, center.y);
     overlayContext.lineTo(x, y);
     overlayContext.stroke();
+
+    overlayContext.beginPath();
+    overlayContext.moveTo(center.x + Math.cos(angle) * (radius * 0.34), center.y + Math.sin(angle) * (radius * 0.34));
+    overlayContext.lineTo(center.x + Math.cos(angle + 0.12) * (radius * 0.46), center.y + Math.sin(angle + 0.12) * (radius * 0.46));
+    overlayContext.strokeStyle = hexToRgba("#ffffff", 0.22);
+    overlayContext.stroke();
+    overlayContext.strokeStyle = hexToRgba(segment.color, 0.92);
   }
 
   overlayContext.fillStyle = hexToRgba("#ffffff", 0.35);
@@ -127,6 +139,79 @@ function drawDrip(segment) {
 
   overlayContext.beginPath();
   overlayContext.ellipse(point.x, point.y + height + width * 0.2, width, width * 1.3, 0, 0, Math.PI * 2);
+  overlayContext.fill();
+  overlayContext.restore();
+}
+
+function drawInkSlap(segment) {
+  const center = pagePoint(segment.to);
+  const splashRadius = Math.max(26, segment.size * 4.2);
+  const droplets = 8;
+
+  overlayContext.save();
+  overlayContext.fillStyle = hexToRgba(segment.color, 0.92);
+  overlayContext.strokeStyle = hexToRgba("#ffffff", 0.12);
+  overlayContext.lineWidth = Math.max(1, segment.size * 0.24);
+
+  overlayContext.beginPath();
+  for (let index = 0; index < 18; index += 1) {
+    const angle = (Math.PI * 2 * index) / 18;
+    const wobble = splashRadius * (0.84 + (Math.sin(angle * 3 + (segment.seed || 0)) * 0.22));
+    const x = center.x + Math.cos(angle) * wobble;
+    const y = center.y + Math.sin(angle) * wobble;
+    if (index === 0) {
+      overlayContext.moveTo(x, y);
+    } else {
+      overlayContext.lineTo(x, y);
+    }
+  }
+  overlayContext.closePath();
+  overlayContext.fill();
+  overlayContext.stroke();
+
+  for (let index = 0; index < droplets; index += 1) {
+    const angle = ((Math.PI * 2) / droplets) * index + (segment.seed || 0) * 0.45;
+    const distance = splashRadius * (1.3 + ((index % 3) * 0.28));
+    const radius = Math.max(4, segment.size * (0.58 + ((index % 2) * 0.22)));
+    overlayContext.beginPath();
+    overlayContext.arc(
+      center.x + Math.cos(angle) * distance,
+      center.y + Math.sin(angle) * distance,
+      radius,
+      0,
+      Math.PI * 2,
+    );
+    overlayContext.fill();
+  }
+
+  overlayContext.restore();
+}
+
+function drawConfetti(segment) {
+  const center = pagePoint(segment.to);
+  const colors = ["#ef6a48", "#ffd05b", "#4d83ff", "#ff5b7c", "#35b56a", "#ffffff"];
+  const pieces = 20;
+
+  overlayContext.save();
+  for (let index = 0; index < pieces; index += 1) {
+    const angle = ((Math.PI * 2) / pieces) * index + ((segment.seed || 0) * 0.25);
+    const distance = Math.max(26, segment.size * 5.4) * (0.55 + ((index % 5) * 0.13));
+    const x = center.x + Math.cos(angle) * distance;
+    const y = center.y + Math.sin(angle) * distance;
+    const width = Math.max(6, segment.size * 1);
+    const height = Math.max(9, segment.size * 1.7);
+
+    overlayContext.save();
+    overlayContext.translate(x, y);
+    overlayContext.rotate(angle + (index % 3) * 0.4);
+    overlayContext.fillStyle = colors[index % colors.length];
+    overlayContext.fillRect(-width / 2, -height / 2, width, height);
+    overlayContext.restore();
+  }
+
+  overlayContext.beginPath();
+  overlayContext.arc(center.x, center.y, Math.max(4, segment.size * 0.9), 0, Math.PI * 2);
+  overlayContext.fillStyle = hexToRgba("#ffffff", 0.58);
   overlayContext.fill();
   overlayContext.restore();
 }
@@ -214,6 +299,60 @@ function drawStickman(segment) {
   overlayContext.restore();
 }
 
+function drawStickerSlap(segment) {
+  const center = pagePoint(segment.to);
+  const width = Math.max(86, segment.size * 12.5);
+  const height = Math.max(64, segment.size * 9.6);
+  const tilt = Math.sin(segment.seed || 0) * 0.18;
+
+  overlayContext.save();
+  overlayContext.translate(center.x, center.y);
+  overlayContext.rotate(tilt);
+
+  overlayContext.fillStyle = hexToRgba("#000000", 0.16);
+  overlayContext.beginPath();
+  overlayContext.roundRect(-width / 2 + 6, -height / 2 + 8, width, height, 22);
+  overlayContext.fill();
+
+  overlayContext.fillStyle = hexToRgba("#fffdf8", 0.99);
+  overlayContext.strokeStyle = hexToRgba(segment.color, 0.92);
+  overlayContext.lineWidth = Math.max(3, segment.size * 0.46);
+  overlayContext.beginPath();
+  overlayContext.roundRect(-width / 2, -height / 2, width, height, 22);
+  overlayContext.fill();
+  overlayContext.stroke();
+
+  overlayContext.fillStyle = hexToRgba(segment.color, 0.14);
+  overlayContext.beginPath();
+  overlayContext.roundRect(-width / 2 + 9, -height / 2 + 9, width - 18, height - 18, 16);
+  overlayContext.fill();
+
+  overlayContext.fillStyle = hexToRgba(segment.color, 0.95);
+  overlayContext.font = `700 ${Math.max(20, segment.size * 2.5)}px "Trebuchet MS", sans-serif`;
+  overlayContext.textAlign = "center";
+  overlayContext.textBaseline = "middle";
+  overlayContext.fillText("NICE", 0, -4);
+
+  overlayContext.fillStyle = hexToRgba("#ffd05b", 0.96);
+  for (let index = 0; index < 3; index += 1) {
+    const sparkleX = -width * 0.22 + (index * width * 0.22);
+    const sparkleY = height * 0.28;
+    overlayContext.beginPath();
+    overlayContext.moveTo(sparkleX, sparkleY - 8);
+    overlayContext.lineTo(sparkleX + 3, sparkleY - 2.4);
+    overlayContext.lineTo(sparkleX + 8, sparkleY);
+    overlayContext.lineTo(sparkleX + 3, sparkleY + 2.4);
+    overlayContext.lineTo(sparkleX, sparkleY + 8);
+    overlayContext.lineTo(sparkleX - 3, sparkleY + 2.4);
+    overlayContext.lineTo(sparkleX - 8, sparkleY);
+    overlayContext.lineTo(sparkleX - 3, sparkleY - 2.4);
+    overlayContext.closePath();
+    overlayContext.fill();
+  }
+
+  overlayContext.restore();
+}
+
 function drawStroke(segment) {
   const from = pagePoint(segment.from);
   const to = pagePoint(segment.to);
@@ -258,6 +397,10 @@ function drawEffect(segment) {
     drawScribble(segment);
   } else if (segment.effect === "drip") {
     drawDrip(segment);
+  } else if (segment.effect === "inkslap") {
+    drawInkSlap(segment);
+  } else if (segment.effect === "confetti") {
+    drawConfetti(segment);
   } else if (segment.effect === "zap") {
     drawZap(segment);
   } else if (segment.effect === "heartburst") {
@@ -266,6 +409,8 @@ function drawEffect(segment) {
     drawBullet(segment);
   } else if (segment.effect === "stickman") {
     drawStickman(segment);
+  } else if (segment.effect === "stickerslap") {
+    drawStickerSlap(segment);
   } else {
     drawStroke(segment);
   }

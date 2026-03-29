@@ -16,10 +16,13 @@ const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
 const QUICK_EFFECTS = {
   crack: { effect: "crack", color: "#f4f0ea", size: 6, label: "Broken screen" },
   drip: { effect: "drip", color: "#cb3046", size: 6, label: "Paint drip" },
+  inkslap: { effect: "inkslap", color: "#232018", size: 7, label: "Ink slap" },
+  confetti: { effect: "confetti", color: "#ef6a48", size: 7, label: "Confetti pop" },
   bullet: { effect: "bullet", color: "#d8d2ca", size: 6, label: "Bullet impact - Pro", pro: true },
   zap: { effect: "zap", color: "#f8f2b3", size: 6, label: "Lightning - Pro", pro: true },
   heartburst: { effect: "heartburst", color: "#ff5b7c", size: 6, label: "Heart burst - Pro", pro: true },
   stickman: { effect: "stickman", color: "#232018", size: 6, label: "Stickman - Pro", pro: true },
+  stickerslap: { effect: "stickerslap", color: "#ffd05b", size: 7, label: "Sticker slap - Pro", pro: true },
 };
 
 const form = document.getElementById("session-form");

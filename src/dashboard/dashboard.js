@@ -661,6 +661,11 @@ function drawCrack(segment, ctx = context) {
   ctx.strokeStyle = hexToRgba(segment.color, 0.85);
   ctx.lineWidth = Math.max(1, segment.size * 0.45);
 
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, baseRadius * 0.2, 0, Math.PI * 2);
+  ctx.fillStyle = hexToRgba("#ffffff", 0.16);
+  ctx.fill();
+
   for (let index = 0; index < 10; index += 1) {
     const angle = (Math.PI * 2 * index) / 10 + ((segment.seed || 0) * 0.35);
     const radius = baseRadius * (0.72 + ((index % 4) * 0.16));
@@ -670,6 +675,13 @@ function drawCrack(segment, ctx = context) {
     ctx.moveTo(center.x, center.y);
     ctx.lineTo(x, y);
     ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(center.x + Math.cos(angle) * (radius * 0.34), center.y + Math.sin(angle) * (radius * 0.34));
+    ctx.lineTo(center.x + Math.cos(angle + 0.12) * (radius * 0.46), center.y + Math.sin(angle + 0.12) * (radius * 0.46));
+    ctx.strokeStyle = hexToRgba("#ffffff", 0.2);
+    ctx.stroke();
+    ctx.strokeStyle = hexToRgba(segment.color, 0.85);
   }
 
   ctx.fillStyle = hexToRgba("#ffffff", 0.36);
@@ -724,6 +736,79 @@ function drawDrip(segment, ctx = context) {
   ctx.stroke();
   ctx.beginPath();
   ctx.ellipse(point.x, point.y + height + width * 0.1, width * 0.9, width * 1.15, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawInkSlap(segment, ctx = context) {
+  const center = segment.to;
+  const splashRadius = Math.max(18, segment.size * 3.6);
+  const droplets = 7;
+
+  ctx.save();
+  ctx.fillStyle = hexToRgba(segment.color, 0.9);
+  ctx.strokeStyle = hexToRgba("#ffffff", 0.12);
+  ctx.lineWidth = Math.max(1, segment.size * 0.22);
+
+  ctx.beginPath();
+  for (let index = 0; index < 18; index += 1) {
+    const angle = (Math.PI * 2 * index) / 18;
+    const wobble = splashRadius * (0.84 + (Math.sin(angle * 3 + (segment.seed || 0)) * 0.22));
+    const x = center.x + Math.cos(angle) * wobble;
+    const y = center.y + Math.sin(angle) * wobble;
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  for (let index = 0; index < droplets; index += 1) {
+    const angle = ((Math.PI * 2) / droplets) * index + (segment.seed || 0) * 0.4;
+    const distance = splashRadius * (1.3 + ((index % 3) * 0.28));
+    const radius = Math.max(3, segment.size * (0.55 + ((index % 2) * 0.22)));
+    ctx.beginPath();
+    ctx.arc(
+      center.x + Math.cos(angle) * distance,
+      center.y + Math.sin(angle) * distance,
+      radius,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawConfetti(segment, ctx = context) {
+  const center = segment.to;
+  const colors = ["#ef6a48", "#ffd05b", "#4d83ff", "#ff5b7c", "#35b56a", "#ffffff"];
+  const pieces = 18;
+
+  ctx.save();
+  for (let index = 0; index < pieces; index += 1) {
+    const angle = ((Math.PI * 2) / pieces) * index + ((segment.seed || 0) * 0.25);
+    const distance = Math.max(18, segment.size * 4.6) * (0.5 + ((index % 5) * 0.13));
+    const x = center.x + Math.cos(angle) * distance;
+    const y = center.y + Math.sin(angle) * distance;
+    const width = Math.max(5, segment.size * 0.9);
+    const height = Math.max(8, segment.size * 1.5);
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle + (index % 3) * 0.4);
+    ctx.fillStyle = colors[index % colors.length];
+    ctx.fillRect(-width / 2, -height / 2, width, height);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, Math.max(3, segment.size * 0.8), 0, Math.PI * 2);
+  ctx.fillStyle = hexToRgba("#ffffff", 0.58);
   ctx.fill();
   ctx.restore();
 }
@@ -803,6 +888,60 @@ function drawStickman(segment, ctx = context) {
   ctx.restore();
 }
 
+function drawStickerSlap(segment, ctx = context) {
+  const center = segment.to;
+  const width = Math.max(54, segment.size * 10.5);
+  const height = Math.max(42, segment.size * 7.8);
+  const tilt = Math.sin(segment.seed || 0) * 0.18;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.rotate(tilt);
+
+  ctx.fillStyle = hexToRgba("#000000", 0.14);
+  ctx.beginPath();
+  ctx.roundRect(-width / 2 + 4, -height / 2 + 6, width, height, 18);
+  ctx.fill();
+
+  ctx.fillStyle = hexToRgba("#fffdf8", 0.98);
+  ctx.strokeStyle = hexToRgba(segment.color, 0.92);
+  ctx.lineWidth = Math.max(2, segment.size * 0.45);
+  ctx.beginPath();
+  ctx.roundRect(-width / 2, -height / 2, width, height, 18);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = hexToRgba(segment.color, 0.14);
+  ctx.beginPath();
+  ctx.roundRect(-width / 2 + 7, -height / 2 + 7, width - 14, height - 14, 14);
+  ctx.fill();
+
+  ctx.fillStyle = hexToRgba(segment.color, 0.94);
+  ctx.font = `700 ${Math.max(14, segment.size * 2.1)}px "Trebuchet MS", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("NICE", 0, -3);
+
+  ctx.fillStyle = hexToRgba("#ffd05b", 0.96);
+  for (let index = 0; index < 3; index += 1) {
+    const sparkleX = -width * 0.22 + (index * width * 0.22);
+    const sparkleY = height * 0.28;
+    ctx.beginPath();
+    ctx.moveTo(sparkleX, sparkleY - 6);
+    ctx.lineTo(sparkleX + 2.6, sparkleY - 1.8);
+    ctx.lineTo(sparkleX + 7, sparkleY);
+    ctx.lineTo(sparkleX + 2.6, sparkleY + 1.8);
+    ctx.lineTo(sparkleX, sparkleY + 6);
+    ctx.lineTo(sparkleX - 2.6, sparkleY + 1.8);
+    ctx.lineTo(sparkleX - 7, sparkleY);
+    ctx.lineTo(sparkleX - 2.6, sparkleY - 1.8);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
 function denormalizePoint(point) {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -819,10 +958,13 @@ function drawSegment(segment) {
   if (drawableSegment.effect === "crack") return drawCrack(drawableSegment);
   if (drawableSegment.effect === "scribble") return drawScribble(drawableSegment);
   if (drawableSegment.effect === "drip") return drawDrip(drawableSegment);
+  if (drawableSegment.effect === "inkslap") return drawInkSlap(drawableSegment);
+  if (drawableSegment.effect === "confetti") return drawConfetti(drawableSegment);
   if (drawableSegment.effect === "zap") return drawZap(drawableSegment);
   if (drawableSegment.effect === "heartburst") return drawHeartburst(drawableSegment);
   if (drawableSegment.effect === "bullet") return drawBullet(drawableSegment);
   if (drawableSegment.effect === "stickman") return drawStickman(drawableSegment);
+  if (drawableSegment.effect === "stickerslap") return drawStickerSlap(drawableSegment);
 
   context.strokeStyle = drawableSegment.color;
   context.lineWidth = drawableSegment.size;
