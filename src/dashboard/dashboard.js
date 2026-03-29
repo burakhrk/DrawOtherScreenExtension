@@ -122,6 +122,7 @@ let isGuestMode = false;
 let activeMexicanWaveCleanup = null;
 const effectSendCooldownState = new Map();
 const effectRenderCooldownState = new Map();
+let lastThrottleToastAt = 0;
 
 function getEffectSendCooldownMs(effectName) {
   if (effectName === "mexicanwave") {
@@ -172,11 +173,14 @@ function canTriggerEffectSend(effectName, { notify = false } = {}) {
   if (remainingMs > 0) {
     if (notify) {
       const seconds = Math.ceil(remainingMs / 1000);
-      setStatus(
-        effectName === "mexicanwave"
-          ? `Text wave is cooling down for ${seconds}s`
-          : "That effect is cooling down for a moment",
-      );
+      const message = effectName === "mexicanwave"
+        ? `Text wave is cooling down for ${seconds}s`
+        : `That effect is cooling down for about ${seconds}s`;
+      setStatus(message);
+      if (Date.now() - lastThrottleToastAt > 1200) {
+        showToast("Hold on a second", message);
+        lastThrottleToastAt = Date.now();
+      }
     }
     return false;
   }
@@ -1842,6 +1846,10 @@ function connect() {
 
     if (message.type === "error") {
       setStatus(message.message);
+      if (/cooling down|too quickly|too often/i.test(message.message || "") && Date.now() - lastThrottleToastAt > 1200) {
+        showToast("Slow down a little", message.message);
+        lastThrottleToastAt = Date.now();
+      }
       addMessage({
         system: true,
         text: message.message,
