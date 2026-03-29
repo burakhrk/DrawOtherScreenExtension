@@ -2,6 +2,7 @@ import { track } from "../lib/analytics.js";
 import { getCurrentUser, onAuthStateChange, signInWithGoogle, signOut } from "../lib/auth.js";
 import {
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
+  POPUP_HERO_DISMISSED_KEY,
   QUICK_ACTION_KEY,
   PROFILE_STORAGE_KEY,
 } from "../lib/constants.js";
@@ -20,6 +21,8 @@ const QUICK_EFFECTS = {
 
 const form = document.getElementById("session-form");
 const accountCard = document.getElementById("accountCard");
+const heroCard = document.getElementById("heroCard");
+const closeHeroButton = document.getElementById("closeHeroButton");
 const onlinePresenceToggle = document.getElementById("onlinePresenceToggle");
 const serverUrlInput = document.getElementById("serverUrl");
 const extensionEnabledInput = document.getElementById("extensionEnabled");
@@ -42,6 +45,11 @@ const noFriendsHint = document.getElementById("noFriendsHint");
 
 let currentState = null;
 let suppressNextAuthRefresh = false;
+
+async function applyHeroVisibility() {
+  const dismissed = await getLocalObject(POPUP_HERO_DISMISSED_KEY, false);
+  heroCard.classList.toggle("hidden", Boolean(dismissed));
+}
 
 function avatarFromName(name) {
   const safe = (name || "SP").trim();
@@ -358,7 +366,6 @@ extensionEnabledInput.addEventListener("change", () => {
 });
 
 onlinePresenceToggle.addEventListener("change", () => {
-  appearOnlineInput.checked = onlinePresenceToggle.checked;
   void updatePreferenceState();
 });
 
@@ -386,4 +393,10 @@ onAuthStateChange((event, session) => {
   }
 });
 
+closeHeroButton.addEventListener("click", async () => {
+  await setLocalObject(POPUP_HERO_DISMISSED_KEY, true);
+  heroCard.classList.add("hidden");
+});
+
+void applyHeroVisibility();
 void refreshBootstrapState();
