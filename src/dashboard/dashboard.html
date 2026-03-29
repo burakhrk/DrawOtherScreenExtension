@@ -45,25 +45,33 @@
             <h2>Friends</h2>
             <span id="friendCount" class="subtle">0 people</span>
           </div>
+          <div class="section-subhead">
+            <span class="eyebrow">Requests</span>
+          </div>
           <div id="requestList" class="request-list"></div>
+          <div class="section-subhead">
+            <span class="eyebrow">Your circle</span>
+          </div>
           <div id="friendsList" class="friends-list"></div>
         </section>
 
-        <form id="pairForm" class="pair-form">
-          <label>
-            <span>Add a friend</span>
-            <input id="pairCodeInput" type="text" placeholder="Party code or exact profile name" required />
-          </label>
-          <button type="submit">Send request</button>
-        </form>
+        <section class="sidebar-tools">
+          <form id="pairForm" class="pair-form">
+            <label>
+              <span>Add a friend</span>
+              <input id="pairCodeInput" type="text" placeholder="Party code or exact profile name" required />
+            </label>
+            <button type="submit">Send request</button>
+          </form>
 
-        <form id="profileForm" class="pair-form profile-form">
-          <label>
-            <span>Your profile name</span>
-            <input id="profileNameInput" type="text" maxlength="32" placeholder="Burak" />
-          </label>
-          <button type="submit">Update profile</button>
-        </form>
+          <form id="profileForm" class="pair-form profile-form">
+            <label>
+              <span>Your profile name</span>
+              <input id="profileNameInput" type="text" maxlength="32" placeholder="Burak" />
+            </label>
+            <button type="submit">Update profile</button>
+          </form>
+        </section>
 
         <section class="membership-card">
           <div>
