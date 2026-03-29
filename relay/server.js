@@ -8,6 +8,8 @@ const maxPayloadBytes = Number(process.env.MAX_PAYLOAD_BYTES || 32 * 1024);
 const appId = process.env.APP_ID || "sketch-party";
 const supabaseUrl = process.env.SUPABASE_URL || "https://lpgdopfqvertiwcmyokh.supabase.co";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2RvcGZxdmVydGl3Y215b2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzkwNTksImV4cCI6MjA4OTI1NTA1OX0.FoEinT6HMlAn8kBBS5Lxw-DDk9PjwZnrr8bJhW5kVXY";
+const logLevel = process.env.LOG_LEVEL || "info";
+const metricsSampleWindowMs = Number(process.env.METRICS_SAMPLE_WINDOW_MS || 60_000);
 
 const sessions = new Map();
 const socketsByUserId = new Map();
@@ -27,8 +29,93 @@ const metrics = {
   protocolErrors: 0,
   rateLimitHits: 0,
 };
+const serverStartedAt = Date.now();
+const metricsSamples = [];
 
 const partyCodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+function shouldLog(level) {
+  if (logLevel === "silent") {
+    return false;
+  }
+
+  if (logLevel === "error") {
+    return level === "error";
+  }
+
+  if (logLevel === "warn") {
+    return level === "warn" || level === "error";
+  }
+
+  return true;
+}
+
+function writeLog(level, event, details = {}) {
+  if (!shouldLog(level)) {
+    return;
+  }
+
+  const payload = {
+    ts: new Date().toISOString(),
+    level,
+    event,
+    ...details,
+  };
+
+  const line = JSON.stringify(payload);
+  if (level === "error") {
+    console.error(line);
+    return;
+  }
+
+  console.log(line);
+}
+
+function collectMetricsSnapshot() {
+  const memory = process.memoryUsage();
+  const snapshot = {
+    at: Date.now(),
+    connectedUsers: runtimeUsers.size,
+    socketCount: wss?.clients?.size || 0,
+    activeSessions: sessions.size,
+    rssBytes: memory.rss,
+    heapUsedBytes: memory.heapUsed,
+    heapTotalBytes: memory.heapTotal,
+  };
+
+  metricsSamples.push(snapshot);
+
+  while (metricsSamples.length > 0 && (snapshot.at - metricsSamples[0].at) > metricsSampleWindowMs) {
+    metricsSamples.shift();
+  }
+
+  return snapshot;
+}
+
+function getPeakMetrics() {
+  let peakConnectedUsers = 0;
+  let peakSocketCount = 0;
+  let peakActiveSessions = 0;
+  let peakRssBytes = 0;
+  let peakHeapUsedBytes = 0;
+
+  for (const sample of metricsSamples) {
+    peakConnectedUsers = Math.max(peakConnectedUsers, sample.connectedUsers);
+    peakSocketCount = Math.max(peakSocketCount, sample.socketCount);
+    peakActiveSessions = Math.max(peakActiveSessions, sample.activeSessions);
+    peakRssBytes = Math.max(peakRssBytes, sample.rssBytes);
+    peakHeapUsedBytes = Math.max(peakHeapUsedBytes, sample.heapUsedBytes);
+  }
+
+  return {
+    peakConnectedUsers,
+    peakSocketCount,
+    peakActiveSessions,
+    peakRssBytes,
+    peakHeapUsedBytes,
+    sampleWindowMs: metricsSampleWindowMs,
+  };
+}
 
 function defaultPreferences() {
   return {
@@ -152,6 +239,12 @@ function sendToClient(userId, clientId, payload) {
 
 function sendProtocolError(socket, message, shouldClose = false) {
   metrics.protocolErrors += 1;
+  writeLog("warn", "protocol_error", {
+    userId: socket.userId || null,
+    clientId: socket.clientId || null,
+    message,
+    close: shouldClose,
+  });
   sendToSocket(socket, {
     type: "error",
     message,
@@ -212,6 +305,11 @@ function endSession(sessionId, reason) {
 
   sessions.delete(sessionId);
   metrics.endedSessions += 1;
+  writeLog("info", "session_ended", {
+    sessionId,
+    reason,
+    participants: session.participants,
+  });
 
   for (const participantId of session.participants) {
     if (activeSessionByUserId.get(participantId) === sessionId) {
@@ -412,6 +510,11 @@ async function validateUserIdentity(message, socket) {
 
   if (!verifiedUser || verifiedUser.id !== message.userId) {
     sendProtocolError(socket, "JWT verification failed.", true);
+    writeLog("warn", "registration_rejected", {
+      claimedUserId: message.userId || null,
+      clientId: message.clientId || null,
+      reason: "jwt_verification_failed",
+    });
     return null;
   }
 
@@ -441,11 +544,15 @@ const httpServer = http.createServer((request, response) => {
   }
 
   if (request.url === "/metrics") {
+    const latestSample = collectMetricsSnapshot();
     const body = JSON.stringify({
       ok: true,
       appId,
+      uptimeSeconds: Math.floor((Date.now() - serverStartedAt) / 1000),
       connectedUsers: runtimeUsers.size,
       activeSessions: sessions.size,
+      current: latestSample,
+      peaks: getPeakMetrics(),
       metrics,
     });
 
@@ -582,6 +689,11 @@ wss.on("connection", (socket) => {
         displayName: user.displayName,
       });
       metrics.successfulRegistrations += 1;
+      writeLog("info", "registered", {
+        userId: user.userId,
+        clientId: socket.clientId,
+        visibleOnline: isVisibleOnline(user.userId),
+      });
       broadcastPresenceState();
       return;
     }
@@ -663,6 +775,12 @@ wss.on("connection", (socket) => {
       activeSessionByUserId.set(userId, session.sessionId);
       activeSessionByUserId.set(targetUserId, session.sessionId);
       metrics.startedSessions += 1;
+      writeLog("info", "session_started", {
+        sessionId: session.sessionId,
+        mode,
+        initiatorId: userId,
+        recipientId: targetUserId,
+      });
 
       sendSessionStarted(userId, session, false);
       sendSessionStarted(targetUserId, session, false);
@@ -782,6 +900,11 @@ wss.on("connection", (socket) => {
     if (!userId || !clientId) {
       return;
     }
+    writeLog("info", "socket_closed", {
+      userId,
+      clientId,
+      remainingSocketsForUser: Math.max(0, getSocketMap(userId).size - 1),
+    });
 
     const sockets = getSocketMap(userId);
     sockets.delete(clientId);
@@ -831,6 +954,10 @@ wss.on("close", () => {
 });
 
 httpServer.listen(port, host, () => {
-  console.log(`Sketch Party relay is ready at http://${host}:${port}.`);
+  writeLog("info", "relay_started", {
+    host,
+    port,
+    appId,
+  });
 });
 

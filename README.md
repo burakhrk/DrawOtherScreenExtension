@@ -1,103 +1,105 @@
-# Sync Sketch Party
+# Sketch Party
 
-Tek seferlik sync ile arkadas listesi olusturan, online durum gosteren ve iki farkli cizim modu sunan Chrome extension + WebSocket relay prototipi.
+Sketch Party is a Chrome extension plus a stateless WebSocket relay for social drawing, surprise effects, and lightweight realtime sessions.
 
-## Proje Yapisi
+## Project Structure
 
-Bu repo artik starter kit'teki ayri katman mantigina daha yakin bir yapi kullanir:
+- `src/background/`: service worker and tab messaging bridge
+- `src/content/`: surprise overlay content script
+- `src/dashboard/`: main board UI
+- `src/popup/`: popup sign-in and quick actions UI
+- `src/lib/`: Supabase auth, social client, analytics, and shared helpers
+- `src/types/`: reserved for future type files
+- `relay/`: deployable stateless WebSocket relay
+- `public/icons/`: extension icons
+- `scripts/`: project scripts, build helpers, smoke tests, and load tests
+- `store-assets/`: store screenshots and promo outputs
+- `docs/`: product, analytics, metrics, and production notes
+- `extension-marketing-kit/`: reusable screenshot and promo generation scripts
 
-- `src/background/`: service worker ve tab mesaj kopruleri
-- `src/content/`: aktif sekmeye surpriz efekt basan content script
-- `src/dashboard/`: ana board ekraninin HTML, CSS ve JS dosyalari
-- `src/popup/`: popup giris ve hizli baslatma yuzeyi
-- `src/lib/`: Supabase auth, social client, analytics ve ortak yardimci katmanlar
-- `src/types/`: ileride tip dosyalari icin ayrilmis alan
-- `relay/`: deploy edilen stateless WebSocket relay sunucusu
-- `public/icons/`: extension ikon kaynaklari icin ayrilmis alan
-- `scripts/`: repo-ozel yardimci scriptler icin ayrilmis alan
-- `store-assets/`: store screenshot, promo ve video ciktilari icin ayrilmis alan
-- `docs/`: urun ve analytics notlari
-- `extension-marketing-kit/`: ileride screenshot ve promo video uretmek icin reusable scriptler
+## Important Files
 
-## Onemli Dosyalar
-
-- `manifest.json`: Chrome extension tanimi
+- `manifest.json`: Chrome extension manifest
 - `src/popup/popup.html`: popup UI
-- `src/dashboard/dashboard.html`: arkadas listesi, draft/cizim ve sohbet ekrani
-- `src/lib/`: auth, Supabase client ve social wrapper
-- `relay/server.js`: JWT dogrulamali realtime relay
-- `docs/ANALYTICS_ROADMAP.md`: analytics eventlerini ne zaman ve nasil genisletecegimize dair notlar
+- `src/dashboard/dashboard.html`: friends, drawing, and chat UI
+- `src/lib/`: auth, Supabase client, and social wrapper
+- `relay/server.js`: JWT-verified realtime relay
+- `docs/ANALYTICS_ROADMAP.md`: analytics expansion notes
+- `docs/RELAY_METRICS_GUIDE.md`: how to read hosted relay metrics
+- `docs/PRODUCTION_LOAD_CHECKLIST.md`: rollout and hosted load test checklist
 
-## Yerel Kurulum
+## Local Setup
 
-1. Node.js kurulu degilse kur.
-2. Bu klasorde `npm install` calistir.
-3. Extension paketi icin `npm run build` calistir.
-4. Relay sunucuyu baslatmak icin `npm start` calistir.
-5. Chrome'da `chrome://extensions` ac.
-6. Gelistirici modunu aktif et.
-7. `Load unpacked` ile `dist` klasorunu sec.
-8. Extension popup'inda isim ve sunucu adresi olarak `http://localhost:3000` gir.
-9. Acilan panelde kendi sync kodunu arkadasinla paylas.
-10. Arkadasinin kodunu sync alanina girerek bir kez esles.
-11. Arkadas listesinden online kullaniciyi secip mod baslat.
-12. `Ciz gonder` modunda sen cizersin, karsi taraf izler.
-13. `Es zamanli` modunda iki taraf da ayni anda cizebilir.
+1. Install Node.js if needed.
+2. Run `npm install` in this folder.
+3. Run `npm run build` for the extension package.
+4. Run `npm start` to start the relay.
+5. Open `chrome://extensions`.
+6. Turn on Developer mode.
+7. Use `Load unpacked` and select `dist`.
+8. In the popup, use `http://localhost:3000` as the server URL for local testing.
+9. Open the board and share your party code with a friend.
+10. Send a friend request with their party code or exact profile name.
+11. Start a session from the friend list.
+12. In `Send drawing` mode, one side draws and the other watches.
+13. In `Live mode`, both sides can draw together.
 
-## Build Ciktisi
+## Build Output
 
-- `npm run build` her seferinde `dist/` klasorunu bastan olusturur.
-- `dist/` sadece extension icin gereken dosyalari icerir: `manifest.json`, `src/`, `public/`.
-- `dist/` `.gitignore` icindedir; repo ve GitHub tarihi build ciktisi ile kirlenmez.
-- Chrome `Load unpacked` ve store paketleme icin artik hedef klasor `dist/` olmalidir.
+- `npm run build` recreates `dist/` from scratch every time.
+- `dist/` only contains the files needed by the extension: `manifest.json`, `src/`, `public/`.
+- `dist/` is ignored by Git, so repeated builds do not dirty the repo.
+- Use `dist/` for Chrome `Load unpacked` and store packaging.
 
-## Farkli Bilgisayarlar Icin
+## Hosted Relay
 
-Bu proje artik internetten erisilebilen bir sunucuya deploy edilmeye uygun.
+This project is designed to be deployed to an internet-accessible Node host.
 
-1. `relay/server.js` tek portta hem HTTP hem WebSocket dinler.
-2. Health check icin `GET /health` endpoint'i vardir.
-3. Basit runtime sayaçlari icin `GET /metrics` endpoint'i vardir.
-4. Extension'a `https://senin-domainin.com` yazman yeterli; istemci bunu otomatik olarak `wss://` baglantisina cevirir.
+1. `relay/server.js` serves both HTTP and WebSocket on one port.
+2. `GET /health` is available for health checks.
+3. `GET /metrics` is available for runtime counters and memory snapshots.
+4. In the extension, entering `https://your-domain.com` is enough; the client converts it to `wss://` automatically.
 
-Ornek deploy secenekleri:
+Example deployment options:
 
-- Bir VPS uzerinde `npm install` ve `npm start`
-- Docker ile bir cloud servisine deploy
-- Render, Railway, Fly.io benzeri tek-instance Node servisleri
+- A VPS with `npm install` and `npm start`
+- Docker on a cloud host
+- Render, Railway, or Fly.io single-instance Node services
 
-Docker ile calistirmak icin:
+To run with Docker:
 
 1. `docker build -t sync-sketch-party .`
-2. `docker run -p 3000:3000 -e APP_ID=drawing-office -e SUPABASE_URL=https://... -e SUPABASE_ANON_KEY=... sync-sketch-party`
+2. `docker run -p 3000:3000 -e APP_ID=sketch-party -e SUPABASE_URL=https://... -e SUPABASE_ANON_KEY=... sync-sketch-party`
 
-Sunucu deploy olduktan sonra extension icinde sunucu adresi olarak ornegin `https://draw.yourapp.com` girmen yeterli olur.
+After deployment, enter a hosted URL such as `https://draw.yourapp.com` in the extension.
 
-## Hizli Test: Render
+## Quick Hosted Test: Render
 
-Arkadasinla farkli bilgisayarlardan en hizli test icin Render uzerinden mevcut `relay/server.js` sunucusunu yayinlayabilirsin.
+To test quickly across different computers, deploy the relay on Render.
 
-1. Bu repo'yu GitHub'a push et.
-2. Render'da `New +` -> `Blueprint` sec.
-3. Repo'yu bagla; Render [render.yaml](C:/Users/burak/Desktop/Burakhrk/SideProjects/DrawingExtension/render.yaml) dosyasini otomatik okuyacak.
-4. Deploy bitince Render sana `https://...onrender.com` adresi verecek.
-5. Extension popup'inda sunucu adresi olarak bu `https` adresini yaz.
-6. Extension istemcisi bunu otomatik olarak `wss` baglantisina cevirir.
+1. Push this repo to GitHub.
+2. In Render, choose `New +` -> `Blueprint`.
+3. Connect the repo; Render will read `render.yaml`.
+4. After deployment, Render gives you a `https://...onrender.com` URL.
+5. Use that URL in the extension popup.
+6. The client automatically converts it to a secure WebSocket connection.
 
-Not:
+Notes:
 
-- Render resmi dokumanina gore WebSocket baglantilarini public internetten kabul ediyor. [WebSockets on Render](https://render.com/docs/websocket)
-- Render web service'leri public URL ve TLS ile gelir; uygulama `PORT` env'ine baglanmalidir. Bizim sunucu bunu zaten yapiyor. [Web Services](https://render.com/docs/web-services)
+- Render supports public WebSocket connections. [WebSockets on Render](https://render.com/docs/websocket)
+- Render web services expose a public TLS URL and require the app to bind to `PORT`. The relay already does this. [Web Services](https://render.com/docs/web-services)
 
-## Notlar
+## Notes
 
-- Su an cizimler sadece aktif oturum icinde canli aktarilir; gecmis cizimi yeni oturuma tasima yok.
-- Relay stateless calisir; kalici arkadaslik ve tercih verisinin kaynagi Supabase'tir.
-- Kimlik artik cihaz anahtarina degil Supabase hesabina dayanir; relay kayit sirasinda access token dogrulamasi yapar.
-- Realtime oturum baslatma istegi de Supabase `sessions` tablosundaki aktif RPC oturumuyla eslestirilir; tek basina websocket mesaji yeterli degildir.
-- Kisa baglanti kopmalarinda oturum aninda dusmez; varsayilan olarak `8` saniyelik geri baglanma penceresi vardir.
-- Relay tarafinda temel payload guard ve rate limit bulunur; bu store/public dagitim icin daha guvenli bir taban verir.
+- Drawings are only live inside the current session; past canvas history is not replayed to future sessions.
+- The relay is stateless; Supabase is the source of truth for account, friendship, and preference data.
+- Identity is account-based, not device-key-based; the relay verifies access tokens during registration.
+- Realtime session start must match an active row in Supabase `sessions`; a WebSocket message alone is not enough.
+- Brief disconnects do not drop the session immediately; the default reconnect grace window is `8` seconds.
+- The relay includes basic payload guards and rate limits for safer public distribution.
+- The current relay is still single-instance realtime infrastructure; multi-instance scaling is not implemented yet.
 
-## Testler
+## Tests
 
-- `npm run test:relay-smoke`: mock Supabase ile relay register, presence, session verification, chat/draw forwarding, rate limit ve metrics akisini dener.
+- `npm run test:relay-smoke`: tests register, presence, session verification, chat/draw forwarding, rate limiting, and metrics using a mock Supabase.
+- `npm run test:relay-load`: runs a local concurrent relay benchmark with many simulated users and sessions.
