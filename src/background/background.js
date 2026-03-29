@@ -7,6 +7,15 @@ async function getActiveTab() {
   return tabs[0];
 }
 
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason !== "install") {
+    return;
+  }
+
+  const dashboardUrl = chrome.runtime.getURL("src/dashboard/dashboard.html");
+  void chrome.tabs.create({ url: dashboardUrl });
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "SHOW_SURPRISE_EFFECT") {
     getActiveTab()
