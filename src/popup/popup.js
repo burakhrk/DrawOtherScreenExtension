@@ -7,7 +7,6 @@ import {
 } from "../lib/constants.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import { bootstrap, setPreferences } from "../lib/sketch-party-social-client.js";
-import { getEntitlementBadge } from "../lib/entitlements.js";
 
 const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
 const QUICK_EFFECTS = {
@@ -34,10 +33,6 @@ const accountTitle = document.getElementById("accountTitle");
 const accountSubtitle = document.getElementById("accountSubtitle");
 const accountAvatar = document.getElementById("accountAvatar");
 const accountStatePill = document.getElementById("accountStatePill");
-const planStatePill = document.getElementById("planStatePill");
-const planTitle = document.getElementById("planTitle");
-const planDetail = document.getElementById("planDetail");
-const upgradeButton = document.getElementById("upgradeButton");
 const signInButton = document.getElementById("signInButton");
 const signOutButton = document.getElementById("signOutButton");
 const statusText = document.getElementById("statusText");
@@ -99,18 +94,6 @@ function syncEffectEntitlementUI(entitlement) {
   }
 }
 
-function applyEntitlementUI(entitlement) {
-  const badge = getEntitlementBadge(entitlement);
-  const isPro = Boolean(entitlement?.isPro);
-
-  planStatePill.textContent = entitlement?.plan === "pro-trial" ? "Pro trial" : isPro ? "Pro" : "Free";
-  planStatePill.style.background = isPro ? "var(--success)" : "#f3e5d5";
-  planTitle.textContent = badge.title;
-  planDetail.textContent = badge.detail;
-  upgradeButton.textContent = badge.cta;
-  syncEffectEntitlementUI(entitlement);
-}
-
 function applySignedInPendingUI(user) {
   const displayName =
     user?.user_metadata?.full_name ||
@@ -140,6 +123,7 @@ function applySignedInPendingUI(user) {
   accountStatePill.style.background = "var(--success)";
   statusText.textContent = "Finishing setup and loading your friends...";
   accountCard.classList.add("is-signed-in-minimal");
+  syncEffectEntitlementUI(null);
   updateQuickActionsVisibility(0);
   toggleAuthenticatedUI(true);
 }
@@ -194,7 +178,7 @@ async function applyBootstrapState(state) {
     accountStatePill.style.background = "#f3e5d5";
     statusText.textContent = "Sign in first, then open your board.";
     serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
-    applyEntitlementUI(null);
+    syncEffectEntitlementUI(null);
     accountCard.classList.remove("is-signed-in-minimal");
     updateQuickActionsVisibility(0);
     toggleAuthenticatedUI(false);
@@ -215,7 +199,7 @@ async function applyBootstrapState(state) {
   accountStatePill.style.background = state.preferences.extensionEnabled
     ? (state.preferences.appearOnline ? "var(--success)" : "var(--blue)")
     : "#f3e5d5";
-  applyEntitlementUI(state.entitlement);
+  syncEffectEntitlementUI(state.entitlement);
   statusText.textContent = `${state.friends.length} friends and ${state.incomingRequests.length} incoming requests are ready.`;
   accountCard.classList.add("is-signed-in-minimal");
   updateQuickActionsVisibility(state.friends.length);
@@ -362,10 +346,6 @@ sendEffectButton.addEventListener("click", async () => {
     size: selected.size,
     label: selected.label,
   });
-});
-
-upgradeButton.addEventListener("click", () => {
-  void openPaywall();
 });
 
 extensionEnabledInput.addEventListener("change", () => {

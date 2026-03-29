@@ -9,6 +9,8 @@ import {
 import { getAccessToken, getCurrentUser } from "../lib/auth.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import { getEntitlementBadge } from "../lib/entitlements.js";
+import { createPartyCode, isPartyCode, isUuidLike, normalizePartyIdentifier } from "../lib/party-code.js";
+import { supabase } from "../lib/supabase-client.js";
 import {
   acceptFriendRequest,
   bootstrap,
@@ -23,6 +25,7 @@ import {
 const params = new URLSearchParams(window.location.search);
 const rawServerUrl = params.get("serverUrl") || "https://sync-sketch-party.onrender.com";
 const clientId = crypto.randomUUID();
+const socialRefreshIntervalMs = 7000;
 
 const profileName = document.getElementById("profileName");
 const profileMeta = document.getElementById("profileMeta");
@@ -61,6 +64,7 @@ const toastStack = document.getElementById("toastStack");
 let socket;
 let userId = "";
 let displayName = "Guest";
+let partyCode = "-";
 let extensionEnabled = true;
 let appearOnline = true;
 let allowSurprise = true;
@@ -78,6 +82,8 @@ let pendingDraftTarget = null;
 let onlineUserIds = new Set();
 let previousOnlineUserIds = new Set();
 let hasPresenceSnapshot = false;
+let socialRefreshTimer = null;
+let socialRefreshInFlight = false;
 
 function getTodayStamp() {
   const now = new Date();
@@ -128,6 +134,109 @@ async function openPaywall(source = "dashboard") {
   });
 
   await chrome.tabs.create({ url: paywallUrl });
+}
+
+function getHttpBaseUrl() {
+  const url = new URL(rawServerUrl);
+  if (url.protocol === "ws:") {
+    url.protocol = "http:";
+  } else if (url.protocol === "wss:") {
+    url.protocol = "https:";
+  }
+  return url.toString().replace(/\/$/, "");
+}
+
+async function resolveUserByRelay(identifier) {
+  const trimmed = normalizePartyIdentifier(identifier);
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${getHttpBaseUrl()}/resolve-user?identifier=${encodeURIComponent(trimmed)}`,
+      {
+        headers: {
+          Accept: "application/json",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json();
+    if (!payload?.ok || !payload?.userId) {
+      return null;
+    }
+
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function resolveUserByProfileName(identifier) {
+  const trimmed = normalizePartyIdentifier(identifier);
+  if (!trimmed || isUuidLike(trimmed) || isPartyCode(trimmed)) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("user_id, display_name")
+      .ilike("display_name", trimmed)
+      .limit(2);
+
+    if (error || !Array.isArray(data) || data.length !== 1) {
+      return null;
+    }
+
+    return {
+      userId: data[0].user_id,
+      displayName: data[0].display_name || trimmed,
+      source: "profile",
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+async function resolveRecipientIdentifier(identifier) {
+  const trimmed = normalizePartyIdentifier(identifier);
+  if (!trimmed) {
+    throw new Error("Enter a party code or profile name first.");
+  }
+
+  if (isUuidLike(trimmed)) {
+    return {
+      userId: trimmed,
+      displayName: trimmed,
+      source: "uuid",
+    };
+  }
+
+  const relayMatch = await resolveUserByRelay(trimmed.toUpperCase());
+  if (relayMatch) {
+    return relayMatch;
+  }
+
+  const profileMatch = await resolveUserByProfileName(trimmed);
+  if (profileMatch) {
+    return profileMatch;
+  }
+
+   if (isPartyCode(trimmed.toUpperCase())) {
+    throw new Error("That party code is not available right now. Ask your friend to open Sketch Party first.");
+  }
+
+  throw new Error("That party code or profile name could not be found right now.");
+}
+
+function updateSyncCodeUI() {
+  syncCode.textContent = partyCode;
 }
 
 function updateMembershipUI() {
@@ -568,7 +677,7 @@ function renderFriends() {
       <div class="friend-top">
         <div>
           <strong>${friend.displayName}</strong>
-          <div class="friend-meta">${friend.userId}</div>
+          <div class="friend-meta">${online ? "Available now" : "Offline right now"}</div>
         </div>
         <span class="status-dot ${online ? "online" : ""}">
           ${online ? "Online" : "Offline"}
@@ -630,13 +739,14 @@ function applySocialState(state) {
   friends = state.friends;
   incomingRequests = state.incomingRequests;
   outgoingRequests = state.outgoingRequests;
+  partyCode = createPartyCode(userId);
 
   profileName.textContent = displayName;
   profileNameInput.value = displayName;
   profileMeta.textContent = extensionEnabled
     ? `Server: ${serverUrl}`
     : `Inactive mode - Server: ${serverUrl}`;
-  syncCode.textContent = userId;
+  updateSyncCodeUI();
 
   updateMembershipUI();
   ensureAllowedEffectSelection();
@@ -644,6 +754,35 @@ function applySocialState(state) {
   renderFriends();
   updateSessionUI();
   setGlobalStatus(appearOnline && extensionEnabled ? "Online" : "Inactive", appearOnline && extensionEnabled);
+}
+
+async function refreshSocialState({ silent = true } = {}) {
+  if (socialRefreshInFlight) {
+    return;
+  }
+
+  socialRefreshInFlight = true;
+
+  try {
+    const state = await getSocialState();
+    applySocialState(state);
+  } catch (error) {
+    if (!silent) {
+      setStatus(error.message || "Your social state could not be refreshed.");
+    }
+  } finally {
+    socialRefreshInFlight = false;
+  }
+}
+
+function startSocialRefreshLoop() {
+  if (socialRefreshTimer) {
+    clearInterval(socialRefreshTimer);
+  }
+
+  socialRefreshTimer = window.setInterval(() => {
+    void refreshSocialState();
+  }, socialRefreshIntervalMs);
 }
 
 async function applyQuickAction() {
@@ -762,6 +901,7 @@ function connect() {
         system: true,
         text: `Connected as ${displayName}. Your friends were loaded from your Supabase account.`,
       });
+      void refreshSocialState();
       return;
     }
 
@@ -828,6 +968,7 @@ function connect() {
           currentRpcSession = matched;
         }
       }).catch(() => {});
+      void refreshSocialState();
       return;
     }
 
@@ -1120,18 +1261,19 @@ pairForm.addEventListener("submit", async (event) => {
   }
 
   try {
-    const state = await sendFriendRequest(friendCode);
+    const recipient = await resolveRecipientIdentifier(friendCode);
+    const state = await sendFriendRequest(recipient.userId);
     applySocialState(state);
     pairCodeInput.value = "";
-    setStatus("Request sent", "ok");
+    setStatus(`Request sent to ${recipient.displayName}`, "ok");
   } catch (error) {
     setStatus(error.message || "The request could not be sent");
   }
 });
 
 copySyncCodeButton.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(userId);
-  setStatus("User ID copied", "ok");
+  await navigator.clipboard.writeText(partyCode);
+  setStatus("Party code copied", "ok");
 });
 
 window.addEventListener("resize", resizeCanvas);
@@ -1149,11 +1291,13 @@ upgradePlanButton.addEventListener("click", () => {
 async function handleSessionStart(targetUserId, mode) {
   try {
     currentRpcSession = await startSocialSession(targetUserId, mode);
+    const accessToken = await getAccessToken();
     send({
       type: "start-session",
       rpcSessionId: currentRpcSession.id,
       targetUserId,
       mode,
+      accessToken,
     });
   } catch (error) {
     setStatus(error.message || "The session could not be started");
@@ -1180,15 +1324,17 @@ async function initialize() {
     user.user_metadata?.name ||
     user.email ||
     "Guest";
+  partyCode = createPartyCode(userId);
   profileName.textContent = displayName;
   profileNameInput.value = displayName;
   profileMeta.textContent = `Server: ${serverUrl}`;
-  syncCode.textContent = userId;
+  updateSyncCodeUI();
   setStatus("Loading your Sketch Party state...");
 
   const state = await bootstrap();
   applySocialState(state);
   connect();
+  startSocialRefreshLoop();
   await applyQuickAction();
   await track("Loaded Social State", {
     screen: "board",
@@ -1202,6 +1348,23 @@ void initialize().catch((error) => {
   setStatus(error.message || "The page could not be initialized");
   drawGuard.classList.remove("hidden");
   drawGuard.textContent = error.message || "Account or social state could not be loaded.";
+});
+
+window.addEventListener("focus", () => {
+  void refreshSocialState();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    void refreshSocialState();
+  }
+});
+
+window.addEventListener("beforeunload", () => {
+  if (socialRefreshTimer) {
+    clearInterval(socialRefreshTimer);
+    socialRefreshTimer = null;
+  }
 });
 
 

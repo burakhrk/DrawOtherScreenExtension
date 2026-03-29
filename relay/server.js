@@ -28,6 +28,8 @@ const metrics = {
   rateLimitHits: 0,
 };
 
+const partyCodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
 function defaultPreferences() {
   return {
     extensionEnabled: true,
@@ -39,6 +41,26 @@ function defaultPreferences() {
 function normalizeDisplayName(value) {
   const nextValue = String(value || "").trim().slice(0, 32);
   return nextValue || "Guest";
+}
+
+function createPartyCode(userId) {
+  const normalized = String(userId || "").trim().toLowerCase();
+  let hash = 2166136261;
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash ^= normalized.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  hash >>>= 0;
+  let output = "";
+
+  for (let index = 0; index < 5; index += 1) {
+    output += partyCodeAlphabet[hash % partyCodeAlphabet.length];
+    hash = Math.floor(hash / partyCodeAlphabet.length);
+  }
+
+  return output;
 }
 
 function normalizePreferences(preferences) {
@@ -342,43 +364,42 @@ async function fetchVerifiedSession({ accessToken, sessionId, initiatorId, recip
     return null;
   }
 
-  const searchParams = new URLSearchParams({
-    select: "id,app_id,initiator_id,recipient_id,mode,status,created_at,ended_at",
-    id: `eq.${sessionId}`,
-    app_id: `eq.${appId}`,
-    status: "eq.active",
-    limit: "1",
-  });
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const searchParams = new URLSearchParams({
+      select: "id,app_id,initiator_id,recipient_id,mode,status,created_at,ended_at",
+      id: `eq.${sessionId}`,
+      app_id: `eq.${appId}`,
+      status: "eq.active",
+      limit: "1",
+    });
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/sessions?${searchParams.toString()}`, {
-    method: "GET",
-    headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+    const response = await fetch(`${supabaseUrl}/rest/v1/sessions?${searchParams.toString()}`, {
+      method: "GET",
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
-  if (!response.ok) {
-    return null;
+    if (response.ok) {
+      const rows = await response.json();
+      const session = rows[0];
+
+      if (
+        session &&
+        session.initiator_id === initiatorId &&
+        session.recipient_id === recipientId &&
+        session.mode === mode &&
+        session.status === "active"
+      ) {
+        return session;
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 180 * (attempt + 1)));
   }
 
-  const rows = await response.json();
-  const session = rows[0];
-
-  if (!session) {
-    return null;
-  }
-
-  if (
-    session.initiator_id !== initiatorId ||
-    session.recipient_id !== recipientId ||
-    session.mode !== mode ||
-    session.status !== "active"
-  ) {
-    return null;
-  }
-
-  return session;
+  return null;
 }
 
 async function validateUserIdentity(message, socket) {
@@ -426,6 +447,57 @@ const httpServer = http.createServer((request, response) => {
       connectedUsers: runtimeUsers.size,
       activeSessions: sessions.size,
       metrics,
+    });
+
+    response.writeHead(200, {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(body),
+    });
+    response.end(body);
+    return;
+  }
+
+  if (request.url?.startsWith("/resolve-user")) {
+    const requestUrl = new URL(request.url, `http://${request.headers.host}`);
+    const identifier = String(requestUrl.searchParams.get("identifier") || "").trim();
+    const normalizedIdentifier = identifier.toUpperCase();
+    let matches = [];
+
+    if (normalizedIdentifier) {
+      matches = Array.from(runtimeUsers.values()).filter((user) => {
+        if (!isVisibleOnline(user.userId)) {
+          return false;
+        }
+
+        const partyCode = createPartyCode(user.userId);
+        if (partyCode === normalizedIdentifier) {
+          return true;
+        }
+
+        return user.displayName.toLowerCase() === identifier.toLowerCase();
+      });
+    }
+
+    if (matches.length !== 1) {
+      const body = JSON.stringify({
+        ok: false,
+        reason: matches.length > 1 ? "ambiguous" : "not-found",
+      });
+
+      response.writeHead(matches.length > 1 ? 409 : 404, {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      });
+      response.end(body);
+      return;
+    }
+
+    const matchedUser = matches[0];
+    const body = JSON.stringify({
+      ok: true,
+      userId: matchedUser.userId,
+      displayName: matchedUser.displayName,
+      partyCode: createPartyCode(matchedUser.userId),
     });
 
     response.writeHead(200, {
@@ -533,6 +605,11 @@ wss.on("connection", (socket) => {
       const targetUserId = typeof message.targetUserId === "string" ? message.targetUserId : "";
       const mode = message.mode === "live" ? "live" : message.mode === "send" ? "send" : "";
       const rpcSessionId = typeof message.rpcSessionId === "string" ? message.rpcSessionId : "";
+      const sessionAccessToken = typeof message.accessToken === "string" ? message.accessToken : user.lastAccessToken;
+
+      if (sessionAccessToken) {
+        user.lastAccessToken = sessionAccessToken;
+      }
 
       if (!targetUserId || !mode || !rpcSessionId) {
         sendProtocolError(socket, "The session start payload is invalid.");
@@ -556,7 +633,7 @@ wss.on("connection", (socket) => {
       }
 
       const verifiedSession = await fetchVerifiedSession({
-        accessToken: user.lastAccessToken,
+        accessToken: sessionAccessToken,
         sessionId: rpcSessionId,
         initiatorId: userId,
         recipientId: targetUserId,

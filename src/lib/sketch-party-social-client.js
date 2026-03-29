@@ -29,7 +29,7 @@ function enrichState(rawState, user) {
     return {
       id: item.id,
       userId: item.requester_id,
-      displayName: item.profile?.display_name || item.requester_id,
+      displayName: item.profile?.display_name || "Sketch Party user",
       avatarUrl: item.profile?.avatar_url || null,
       status: item.status,
       createdAt: item.created_at,
@@ -40,7 +40,7 @@ function enrichState(rawState, user) {
     return {
       id: item.id,
       userId: item.recipient_id,
-      displayName: item.profile?.display_name || item.recipient_id,
+      displayName: item.profile?.display_name || "Sketch Party user",
       avatarUrl: item.profile?.avatar_url || null,
       status: item.status,
       createdAt: item.created_at,
@@ -51,7 +51,7 @@ function enrichState(rawState, user) {
     return {
       friendshipId: item.friendship_id,
       userId: item.friend_user_id,
-      displayName: item.profile?.display_name || item.friend_user_id,
+      displayName: item.profile?.display_name || "Sketch Party user",
       avatarUrl: item.profile?.avatar_url || null,
       createdAt: item.created_at,
       online: item.visible_online === true,
