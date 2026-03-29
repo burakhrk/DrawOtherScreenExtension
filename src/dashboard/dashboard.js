@@ -6,7 +6,7 @@ import {
   PRO_ADVANCED_EFFECTS,
   QUICK_ACTION_KEY,
 } from "../lib/constants.js";
-import { getAccessToken, getCurrentUser } from "../lib/auth.js";
+import { getAccessToken, getCurrentUser, signInWithGoogle } from "../lib/auth.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import { getEntitlementBadge } from "../lib/entitlements.js";
 import { createPartyCode, isPartyCode, isUuidLike, normalizePartyIdentifier } from "../lib/party-code.js";
@@ -32,6 +32,8 @@ const profileMeta = document.getElementById("profileMeta");
 const globalStatus = document.getElementById("globalStatus");
 const syncCode = document.getElementById("syncCode");
 const copySyncCodeButton = document.getElementById("copySyncCode");
+const dashboardAuthCard = document.getElementById("dashboardAuthCard");
+const dashboardSignInButton = document.getElementById("dashboardSignInButton");
 const profileForm = document.getElementById("profileForm");
 const profileNameInput = document.getElementById("profileNameInput");
 const pairForm = document.getElementById("pairForm");
@@ -84,6 +86,51 @@ let previousOnlineUserIds = new Set();
 let hasPresenceSnapshot = false;
 let socialRefreshTimer = null;
 let socialRefreshInFlight = false;
+
+function setSignedOutDashboardUI() {
+  profileName.textContent = "Open the board first, sign in here";
+  profileMeta.textContent = `Server: ${serverUrl}`;
+  syncCode.textContent = "-";
+  friendCount.textContent = "0 people";
+  requestList.innerHTML = "";
+  friendsList.innerHTML = "";
+  membershipTitle.textContent = "Account required";
+  membershipDetail.textContent = "Sign in to load your friends, requests, and live sessions.";
+  membershipPill.textContent = "...";
+  dashboardAuthCard.classList.remove("hidden");
+  profileForm.classList.add("hidden");
+  pairForm.classList.add("hidden");
+  copySyncCodeButton.disabled = true;
+  upgradePlanButton.disabled = true;
+  clearCanvasButton.disabled = true;
+  sendDraftButton.disabled = true;
+  leaveSessionButton.disabled = true;
+  chatInput.disabled = true;
+  setGlobalStatus("Signed out");
+  setStatus("Sign in to continue");
+  drawGuard.classList.remove("hidden");
+  drawGuard.innerHTML = `
+    <div class="draw-guard-content">
+      <p>Open the board anytime, then sign in with Google to load your Sketch Party account and start sending drawings.</p>
+      <button id="drawGuardSignInButton" class="auth-button" type="button">Sign in with Google</button>
+    </div>
+  `;
+  const drawGuardSignInButton = document.getElementById("drawGuardSignInButton");
+  if (drawGuardSignInButton) {
+    drawGuardSignInButton.addEventListener("click", () => {
+      void handleDashboardSignIn();
+    });
+  }
+}
+
+function setSignedInDashboardUI() {
+  dashboardAuthCard.classList.add("hidden");
+  profileForm.classList.remove("hidden");
+  pairForm.classList.remove("hidden");
+  copySyncCodeButton.disabled = false;
+  upgradePlanButton.disabled = false;
+  drawGuard.textContent = "";
+}
 
 function getTodayStamp() {
   const now = new Date();
@@ -748,6 +795,7 @@ function applySocialState(state) {
     : `Inactive mode - Server: ${serverUrl}`;
   updateSyncCodeUI();
 
+  setSignedInDashboardUI();
   updateMembershipUI();
   ensureAllowedEffectSelection();
   renderRequests();
@@ -1304,7 +1352,28 @@ async function handleSessionStart(targetUserId, mode) {
   }
 }
 
+async function handleDashboardSignIn() {
+  dashboardSignInButton.disabled = true;
+  setStatus("Opening Google sign-in...");
+
+  try {
+    await signInWithGoogle();
+    await initialize();
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "Google sign-in failed");
+    setSignedOutDashboardUI();
+  } finally {
+    dashboardSignInButton.disabled = false;
+  }
+}
+
 async function initialize() {
+  if (socialRefreshTimer) {
+    clearInterval(socialRefreshTimer);
+    socialRefreshTimer = null;
+  }
+
   resizeCanvas();
   updateSessionUI();
   setStatus("Loading account...");
@@ -1312,9 +1381,7 @@ async function initialize() {
 
   const user = await getCurrentUser();
   if (!user) {
-    setStatus("No session found");
-    drawGuard.classList.remove("hidden");
-    drawGuard.textContent = "Sign in with Google from the popup first.";
+    setSignedOutDashboardUI();
     return;
   }
 
@@ -1342,6 +1409,10 @@ async function initialize() {
     result: "success",
   });
 }
+
+dashboardSignInButton.addEventListener("click", () => {
+  void handleDashboardSignIn();
+});
 
 void initialize().catch((error) => {
   console.error(error);

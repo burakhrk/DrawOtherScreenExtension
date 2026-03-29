@@ -110,6 +110,27 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
+.auth-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.auth-button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: white;
+  background: linear-gradient(135deg, var(--accent), #eb7f47);
+  white-space: nowrap;
+}
+
 .membership-card {
   display: flex;
   align-items: center;
@@ -377,6 +398,19 @@ h2 {
   background: rgba(255, 250, 244, 0.7);
   color: var(--ink);
   font-weight: 700;
+}
+
+.draw-guard-content {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  max-width: 420px;
+}
+
+.draw-guard-content p {
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 600;
 }
 
 .hidden {

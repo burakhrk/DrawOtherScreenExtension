@@ -66,7 +66,7 @@ function setGuardedState(element, guarded) {
 
 function toggleAuthenticatedUI(isAuthenticated) {
   form.classList.toggle("is-disabled", !isAuthenticated);
-  setGuardedState(openBoardButton, !isAuthenticated);
+  setGuardedState(openBoardButton, false);
   setGuardedState(openWithMessageButton, !isAuthenticated);
   setGuardedState(sendEffectButton, !isAuthenticated);
   onlinePresenceToggle.disabled = !isAuthenticated;
@@ -293,10 +293,6 @@ signOutButton.addEventListener("click", async () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!currentState) {
-    statusText.textContent = "Sign in with Google first.";
-    return;
-  }
 
   await track("Extension Installed", {
     screen: "popup",
@@ -308,11 +304,6 @@ form.addEventListener("submit", async (event) => {
 });
 
 openBoardButton.addEventListener("click", async () => {
-  if (!currentState) {
-    statusText.textContent = "Sign in with Google first.";
-    return;
-  }
-
   await openBoard();
 });
 
