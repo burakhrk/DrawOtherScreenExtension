@@ -3,6 +3,7 @@ import {
   FRIEND_ONLINE_NOTIFICATION_KEY,
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
   FREE_EFFECTS,
+  PAYWALL_URL,
   PRO_ADVANCED_EFFECTS,
   QUICK_ACTION_KEY,
 } from "../lib/constants.js";
@@ -99,7 +100,7 @@ let hasDirectMessages = false;
 
 function setSignedOutDashboardUI() {
   profileName.textContent = "Open the board first, sign in here";
-  profileMeta.textContent = `Server: ${serverUrl}`;
+  profileMeta.textContent = "Your party code and friends will appear after sign-in.";
   syncCode.textContent = "-";
   friendCount.textContent = "0 people";
   requestList.innerHTML = "";
@@ -214,11 +215,7 @@ function showToast(title, text) {
 }
 
 async function openPaywall(source = "dashboard") {
-  const paywallUrl = entitlement?.paywallUrl;
-  if (!paywallUrl) {
-    setStatus("The paywall URL is not configured yet");
-    return;
-  }
+  const paywallUrl = entitlement?.paywallUrl || PAYWALL_URL;
 
   await track("Opened Paywall", {
     screen: "board",
@@ -761,7 +758,7 @@ function renderFriends() {
   if (friends.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "You do not have any accepted friends yet. Send a user ID from the field above.";
+    empty.textContent = "You do not have any accepted friends yet. Send a party code or exact profile name from the field above.";
     friendsList.appendChild(empty);
     return;
   }
@@ -849,8 +846,8 @@ function applySocialState(state) {
   profileName.textContent = displayName;
   profileNameInput.value = displayName;
   profileMeta.textContent = extensionEnabled
-    ? `Server: ${serverUrl}`
-    : `Inactive mode - Server: ${serverUrl}`;
+    ? "Ready for quick sends and surprise moments."
+    : "Inactive mode. Friends will see you as unavailable.";
   updateSyncCodeUI();
 
   setSignedInDashboardUI();
@@ -1476,7 +1473,7 @@ async function initialize() {
   partyCode = createPartyCode(userId);
   profileName.textContent = displayName;
   profileNameInput.value = displayName;
-  profileMeta.textContent = `Server: ${serverUrl}`;
+  profileMeta.textContent = "Loading your party code and friends...";
   updateSyncCodeUI();
   setStatus("Loading your Sketch Party state...");
 
