@@ -20,6 +20,7 @@ const QUICK_EFFECTS = {
 };
 
 const form = document.getElementById("session-form");
+const accountCard = document.getElementById("accountCard");
 const serverUrlInput = document.getElementById("serverUrl");
 const extensionEnabledInput = document.getElementById("extensionEnabled");
 const appearOnlineInput = document.getElementById("appearOnline");
@@ -41,6 +42,8 @@ const signInButton = document.getElementById("signInButton");
 const signOutButton = document.getElementById("signOutButton");
 const statusText = document.getElementById("statusText");
 const openBoardButton = document.getElementById("openBoardButton");
+const quickActionsBlock = document.getElementById("quickActionsBlock");
+const noFriendsHint = document.getElementById("noFriendsHint");
 
 let currentState = null;
 let suppressNextAuthRefresh = false;
@@ -74,6 +77,12 @@ function toggleAuthenticatedUI(isAuthenticated) {
   quickEffectSelect.disabled = false;
   signInButton.classList.toggle("hidden", isAuthenticated);
   signOutButton.classList.toggle("hidden", !isAuthenticated);
+}
+
+function updateQuickActionsVisibility(friendCount) {
+  const hasFriends = friendCount > 0;
+  quickActionsBlock.classList.toggle("hidden", !hasFriends);
+  noFriendsHint.classList.toggle("hidden", hasFriends);
 }
 
 function syncEffectEntitlementUI(entitlement) {
@@ -130,6 +139,8 @@ function applySignedInPendingUI(user) {
   accountStatePill.textContent = "Signed in";
   accountStatePill.style.background = "var(--success)";
   statusText.textContent = "Finishing setup and loading your friends...";
+  accountCard.classList.add("is-signed-in-minimal");
+  updateQuickActionsVisibility(0);
   toggleAuthenticatedUI(true);
 }
 
@@ -184,6 +195,8 @@ async function applyBootstrapState(state) {
     statusText.textContent = "Sign in first, then open your board.";
     serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
     applyEntitlementUI(null);
+    accountCard.classList.remove("is-signed-in-minimal");
+    updateQuickActionsVisibility(0);
     toggleAuthenticatedUI(false);
     return;
   }
@@ -204,6 +217,8 @@ async function applyBootstrapState(state) {
     : "#f3e5d5";
   applyEntitlementUI(state.entitlement);
   statusText.textContent = `${state.friends.length} friends and ${state.incomingRequests.length} incoming requests are ready.`;
+  accountCard.classList.add("is-signed-in-minimal");
+  updateQuickActionsVisibility(state.friends.length);
   toggleAuthenticatedUI(true);
 }
 

@@ -108,6 +108,20 @@ h2 {
   gap: 14px;
 }
 
+.account-card.is-signed-in-minimal {
+  gap: 10px;
+}
+
+.account-card.is-signed-in-minimal .account-avatar,
+.account-card.is-signed-in-minimal #accountSubtitle {
+  display: none;
+}
+
+.account-card.is-signed-in-minimal .account-main {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
 .account-main {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
@@ -221,6 +235,13 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.launch-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 .settings-shell {
