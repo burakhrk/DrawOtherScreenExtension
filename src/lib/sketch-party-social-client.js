@@ -4,10 +4,20 @@ import { getBestDisplayName, getCurrentUser } from "./auth.js";
 import { resolveEntitlement } from "./entitlements.js";
 import { supabase } from "./supabase-client.js";
 
+function toFriendlyError(error) {
+  if (error?.code === "P0001" && String(error.message || "").includes("Unknown or inactive app_id")) {
+    return new Error(
+      `Supabase does not have an active app entry for "${APP_ID}" yet. Add or activate this app_id in your shared project first.`,
+    );
+  }
+
+  return error;
+}
+
 async function rpc(fn, args = {}) {
   const { data, error } = await supabase.rpc(fn, args);
   if (error) {
-    throw error;
+    throw toFriendlyError(error);
   }
   return data;
 }

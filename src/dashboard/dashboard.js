@@ -55,7 +55,7 @@ const clearCanvasButton = document.getElementById("clearCanvas");
 const sendDraftButton = document.getElementById("sendDraft");
 const leaveSessionButton = document.getElementById("leaveSession");
 const canvas = document.getElementById("drawCanvas");
-const context = canvas.getContext("2d");
+const context = canvas.getContext("2d", { willReadFrequently: true });
 const toastStack = document.getElementById("toastStack");
 
 let socket;
@@ -1174,6 +1174,18 @@ async function initialize() {
     return;
   }
 
+  userId = user.id;
+  displayName =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email ||
+    "Guest";
+  profileName.textContent = displayName;
+  profileNameInput.value = displayName;
+  profileMeta.textContent = `Server: ${serverUrl}`;
+  syncCode.textContent = userId;
+  setStatus("Loading your Sketch Party state...");
+
   const state = await bootstrap();
   applySocialState(state);
   connect();
@@ -1189,7 +1201,7 @@ void initialize().catch((error) => {
   console.error(error);
   setStatus(error.message || "The page could not be initialized");
   drawGuard.classList.remove("hidden");
-  drawGuard.textContent = "Account or social state could not be loaded.";
+  drawGuard.textContent = error.message || "Account or social state could not be loaded.";
 });
 
 
