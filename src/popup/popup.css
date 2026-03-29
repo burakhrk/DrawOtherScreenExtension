@@ -1,16 +1,18 @@
 :root {
   color-scheme: light;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  --bg: #f4efe8;
-  --panel: rgba(255, 252, 247, 0.96);
+  font-family: "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --bg: #f7ead8;
+  --panel: rgba(255, 251, 244, 0.98);
   --panel-soft: rgba(255, 255, 255, 0.8);
-  --line: rgba(35, 32, 24, 0.1);
+  --line: rgba(35, 32, 24, 0.16);
   --text: #231f1a;
   --muted: #6e665d;
-  --accent: #e16846;
-  --accent-dark: #be4d2f;
+  --accent: #ef6a48;
+  --accent-dark: #c74929;
+  --accent-yellow: #ffd05b;
   --success: #dff5e4;
-  --blue: #dce8ff;
+  --blue: #cfe0ff;
+  --shadow-sticker: 0 12px 0 rgba(69, 38, 19, 0.08), 0 20px 34px rgba(69, 38, 19, 0.14);
 }
 
 * {
@@ -21,8 +23,9 @@ body {
   margin: 0;
   min-width: 390px;
   background:
-    radial-gradient(circle at top left, rgba(225, 104, 70, 0.16), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(61, 109, 255, 0.08), transparent 30%),
+    radial-gradient(circle at top left, rgba(239, 106, 72, 0.22), transparent 34%),
+    radial-gradient(circle at 85% 20%, rgba(255, 208, 91, 0.16), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(61, 109, 255, 0.1), transparent 30%),
     var(--bg);
   color: var(--text);
 }
@@ -38,19 +41,31 @@ body {
 .launch-card,
 .membership-card,
 .settings-shell {
-  border: 1px solid var(--line);
-  border-radius: 18px;
+  border: 2px solid rgba(35, 32, 24, 0.08);
+  border-radius: 24px;
   background: var(--panel);
-  box-shadow: 0 14px 30px rgba(59, 37, 18, 0.06);
+  box-shadow: var(--shadow-sticker);
 }
 
 .hero-card {
   position: relative;
-  padding: 16px;
+  padding: 18px;
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
+  overflow: hidden;
+}
+
+.hero-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -40px -50px auto;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: rgba(255, 208, 91, 0.22);
+  pointer-events: none;
 }
 
 .hero-close-button {
@@ -66,6 +81,7 @@ body {
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
+  box-shadow: inset 0 -2px 0 rgba(35, 31, 26, 0.08);
 }
 
 .hero-close-button:hover {
@@ -76,7 +92,8 @@ body {
 .hero-icon {
   width: 56px;
   height: 56px;
-  border-radius: 16px;
+  border-radius: 18px;
+  box-shadow: 0 8px 16px rgba(35, 31, 26, 0.12);
 }
 
 .eyebrow {
@@ -94,8 +111,8 @@ h2 {
 }
 
 h1 {
-  font-size: 25px;
-  line-height: 1.02;
+  font-size: 27px;
+  line-height: 0.98;
 }
 
 h2 {
@@ -120,7 +137,7 @@ h2 {
 .account-card,
 .launch-card,
 .membership-card {
-  padding: 16px;
+  padding: 18px;
 }
 
 .account-card,
@@ -158,14 +175,15 @@ h2 {
 .account-avatar {
   width: 52px;
   height: 52px;
-  border-radius: 16px;
+  border-radius: 18px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #211d18, #4e4032);
+  background: linear-gradient(135deg, #211d18, #5c4333);
   color: #fff;
   font-size: 17px;
   font-weight: 800;
   letter-spacing: 0.08em;
+  box-shadow: 0 8px 18px rgba(32, 29, 23, 0.18);
 }
 
 .account-row,
@@ -182,13 +200,14 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
+  padding: 8px 12px;
+  border: 2px solid rgba(35, 32, 24, 0.08);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 244, 232, 0.95));
   font-size: 12px;
   font-weight: 700;
   color: var(--text);
+  box-shadow: 0 6px 12px rgba(35, 31, 26, 0.08);
 }
 
 .mini-toggle input[type="checkbox"] {
@@ -210,8 +229,9 @@ h2 {
 
 .state-pill,
 .plan-pill {
-  padding: 7px 10px;
-  background: #f3e5d5;
+  padding: 8px 12px;
+  background: #f8e7d0;
+  box-shadow: inset 0 -2px 0 rgba(35, 31, 26, 0.05);
 }
 
 .summary-pill {
@@ -221,22 +241,38 @@ h2 {
 
 .primary-button,
 .ghost-button {
-  border: none;
-  border-radius: 14px;
-  padding: 11px 14px;
+  border: 2px solid rgba(35, 32, 24, 0.08);
+  border-radius: 999px;
+  padding: 12px 16px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
 }
 
 .primary-button {
-  background: linear-gradient(135deg, var(--accent), #f0824d);
+  background: linear-gradient(135deg, var(--accent), #ff9363);
   color: white;
+  box-shadow: 0 8px 0 rgba(199, 73, 41, 0.22), 0 14px 22px rgba(239, 106, 72, 0.18);
 }
 
 .ghost-button {
-  background: #f5e7d7;
+  background: linear-gradient(180deg, #fff7ee, #f9e4cf);
   color: var(--text);
+  box-shadow: 0 8px 0 rgba(137, 105, 77, 0.08), 0 12px 18px rgba(35, 31, 26, 0.06);
+}
+
+.primary-button:hover,
+.ghost-button:hover,
+.hero-close-button:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.03);
+}
+
+.primary-button:active,
+.ghost-button:active {
+  transform: translateY(2px);
+  box-shadow: 0 4px 0 rgba(35, 31, 26, 0.08);
 }
 
 .wide-button {
@@ -266,12 +302,13 @@ h2 {
 .field input,
 .field select {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  border: 2px solid rgba(35, 32, 24, 0.08);
+  border-radius: 16px;
   padding: 11px 12px;
   font-size: 14px;
   background: var(--panel-soft);
   color: var(--text);
+  box-shadow: inset 0 -2px 0 rgba(35, 31, 26, 0.04);
 }
 
 .membership-card {
@@ -319,8 +356,8 @@ h2 {
 
 .settings-card {
   padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border: 2px dashed rgba(35, 32, 24, 0.08);
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
 }
 
