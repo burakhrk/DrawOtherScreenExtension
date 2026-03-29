@@ -5,8 +5,10 @@ import {
   FRIEND_ONLINE_NOTIFICATION_KEY,
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
   FREE_EFFECTS,
+  GUEST_INSTALL_ID_KEY,
   PAYWALL_URL,
   PRO_ADVANCED_EFFECTS,
+  PROFILE_STORAGE_KEY,
   QUICK_ACTION_KEY,
 } from "../lib/constants.js";
 import { getAccessToken, getCurrentUser, signInWithGoogle } from "../lib/auth.js";
@@ -110,6 +112,7 @@ let unreadMessageCount = 0;
 let latestMessagePreview = "Messages";
 let hasDirectMessages = false;
 let onboardingStep = 0;
+let isGuestMode = false;
 
 const onboardingSteps = [
   {
@@ -167,42 +170,63 @@ const onboardingSteps = [
   },
 ];
 
+async function getOrCreateGuestIdentity() {
+  let installId = await getLocalObject(GUEST_INSTALL_ID_KEY, "");
+  if (!installId) {
+    installId = crypto.randomUUID();
+    await setLocalObject(GUEST_INSTALL_ID_KEY, installId);
+  }
+
+  const localProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
+  const guestUserId = `guest:${installId}`;
+  const guestCode = createPartyCode(guestUserId);
+  const guestName = String(localProfile.guestName || "").trim() || `Guest ${guestCode}`;
+
+  return {
+    userId: guestUserId,
+    displayName: guestName,
+    partyCode: guestCode,
+  };
+}
+
 function setSignedOutDashboardUI() {
-  profileName.textContent = "Open the board first, sign in here";
-  profileAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl("signed-out", "Sketch Party")}")`);
-  profileMeta.textContent = "Your party code and friends will appear after sign-in.";
-  syncCode.textContent = "-";
-  friendCount.textContent = "0 people";
+  profileName.textContent = displayName || "Guest";
+  profileAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl(userId || "signed-out", displayName || "Sketch Party")}")`);
+  profileMeta.textContent = "Guest mode is live. You can pair with a party code now, or sign in later to save friends.";
+  syncCode.textContent = partyCode || "-";
+  friendCount.textContent = "Guest sessions";
   requestList.innerHTML = "";
   friendsList.innerHTML = "";
-  membershipTitle.textContent = "Account required";
-  membershipDetail.textContent = "Sign in to load your friends, requests, and live sessions.";
-  membershipPill.textContent = "...";
+  membershipTitle.textContent = "Guest mode";
+  membershipDetail.textContent = "Temporary sessions work right away. Sign in when you want saved friends and restored social state.";
+  membershipPill.textContent = "Guest";
   dashboardAuthCard.classList.remove("hidden");
-  profileForm.classList.add("hidden");
-  pairForm.classList.add("hidden");
+  profileForm.classList.remove("hidden");
+  pairForm.classList.remove("hidden");
   messages.innerHTML = "";
   latestMessagePreview = "Messages";
   unreadMessageCount = 0;
   hasDirectMessages = false;
   closeInbox();
-  copySyncCodeButton.disabled = true;
-  upgradePlanButton.disabled = true;
-  clearCanvasButton.disabled = true;
-  sendDraftButton.disabled = true;
+  copySyncCodeButton.disabled = false;
+  upgradePlanButton.disabled = false;
+  clearCanvasButton.disabled = false;
+  sendDraftButton.disabled = draftSegments.length === 0;
   leaveSessionButton.disabled = true;
   chatInput.disabled = true;
-  setGlobalStatus("Signed out");
-  setStatus("Sign in to continue");
+  setGlobalStatus(appearOnline && extensionEnabled ? "Guest online" : "Guest");
+  setStatus("Guest mode ready");
   drawGuard.classList.remove("hidden");
   drawGuard.innerHTML = `
     <div class="draw-guard-content">
-      <p>Sketch Party works best once you sign in, add a friend, and send your first surprise from the board.</p>
+      <p>Draw here, paste a party code on the left, and start a temporary guest session. Sign in later if you want saved friends.</p>
     </div>
   `;
+  profileNameInput.value = displayName;
 }
 
 function setSignedInDashboardUI() {
+  isGuestMode = false;
   dashboardAuthCard.classList.add("hidden");
   profileForm.classList.remove("hidden");
   pairForm.classList.remove("hidden");
@@ -863,7 +887,9 @@ function renderFriends() {
   if (friends.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "You do not have any accepted friends yet. Send a party code or exact profile name from the field above.";
+    empty.textContent = isGuestMode
+      ? "Guest mode does not save friends. Paste a party code or exact profile name above to start a temporary session."
+      : "You do not have any accepted friends yet. Send a party code or exact profile name from the field above.";
     friendsList.appendChild(empty);
     return;
   }
@@ -969,6 +995,10 @@ function applySocialState(state) {
 }
 
 async function refreshSocialState({ silent = true } = {}) {
+  if (isGuestMode) {
+    return;
+  }
+
   if (socialRefreshInFlight) {
     return;
   }
@@ -1079,13 +1109,7 @@ function connect() {
 
   socket.addEventListener("open", async () => {
     try {
-      const accessToken = await getAccessToken();
-
-      if (!accessToken) {
-        setStatus("Session expired");
-        socket.close();
-        return;
-      }
+      const accessToken = isGuestMode ? null : await getAccessToken();
 
       send({
         type: "register-user",
@@ -1093,6 +1117,7 @@ function connect() {
         clientId,
         displayName,
         accessToken,
+        guest: isGuestMode,
         preferences: {
           extensionEnabled,
           appearOnline,
@@ -1112,9 +1137,22 @@ function connect() {
     if (message.type === "registered") {
       addMessage({
         system: true,
-        text: `Connected as ${displayName}. Your friends were loaded from your Supabase account.`,
+        text: isGuestMode
+          ? `Connected as ${displayName}. Guest sessions are ready.`
+          : `Connected as ${displayName}. Your friends were loaded from your Supabase account.`,
       });
-      void refreshSocialState();
+      if (!isGuestMode) {
+        void refreshSocialState();
+      }
+      return;
+    }
+
+    if (message.type === "guest-preference-nudge") {
+      showToast("Someone tried to send you something", message.message || "Your current receiving settings blocked it.");
+      addMessage({
+        system: true,
+        text: message.message || "Someone tried to start a session, but your current receiving settings blocked it.",
+      });
       return;
     }
 
@@ -1182,6 +1220,9 @@ function connect() {
       }
 
       void getSocialState().then((state) => {
+        if (isGuestMode) {
+          return;
+        }
         const matched = state?.activeSessions.find((session) =>
           [session.initiator_id, session.recipient_id].includes(message.partner.userId)
         );
@@ -1354,6 +1395,33 @@ profileForm.addEventListener("submit", async (event) => {
   }
 
   try {
+    if (isGuestMode) {
+      const localProfile = (await getLocalObject(PROFILE_STORAGE_KEY, {})) || {};
+      await setLocalObject(PROFILE_STORAGE_KEY, {
+        ...localProfile,
+        guestName: nextName,
+      });
+      displayName = nextName;
+      profileName.textContent = displayName;
+      profileAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl(userId, displayName)}")`);
+      setStatus("Guest name updated", "ok");
+      if (socket?.readyState === WebSocket.OPEN) {
+        send({
+          type: "register-user",
+          userId,
+          clientId,
+          displayName,
+          guest: true,
+          preferences: {
+            extensionEnabled,
+            appearOnline,
+            allowSurprise,
+          },
+        });
+      }
+      return;
+    }
+
     const state = await updateProfile(nextName);
     applySocialState(state);
     setStatus("Profile updated", "ok");
@@ -1490,6 +1558,13 @@ pairForm.addEventListener("submit", async (event) => {
 
   try {
     const recipient = await resolveRecipientIdentifier(friendCode);
+    if (isGuestMode) {
+      await handleSessionStart(recipient.userId, "send");
+      pairCodeInput.value = "";
+      setStatus(`Trying ${recipient.displayName}...`, "ok");
+      return;
+    }
+
     const state = await sendFriendRequest(recipient.userId);
     applySocialState(state);
     pairCodeInput.value = "";
@@ -1526,6 +1601,17 @@ upgradePlanButton.addEventListener("click", () => {
 
 async function handleSessionStart(targetUserId, mode) {
   try {
+    if (isGuestMode) {
+      currentRpcSession = null;
+      send({
+        type: "start-session",
+        targetUserId,
+        mode,
+        guestSession: true,
+      });
+      return;
+    }
+
     currentRpcSession = await startSocialSession(targetUserId, mode);
     const accessToken = await getAccessToken();
     send({
@@ -1562,6 +1648,12 @@ async function initialize() {
     socialRefreshTimer = null;
   }
 
+  if (socket) {
+    socket.onclose = null;
+    socket.close();
+    socket = null;
+  }
+
   resizeCanvas();
   updateSessionUI();
   setStatus("Loading account...");
@@ -1570,7 +1662,18 @@ async function initialize() {
 
   const user = await getCurrentUser();
   if (!user) {
+    const guest = await getOrCreateGuestIdentity();
+    isGuestMode = true;
+    userId = guest.userId;
+    displayName = guest.displayName;
+    partyCode = guest.partyCode;
+    profileName.textContent = displayName;
+    profileAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl(userId, displayName)}")`);
+    profileNameInput.value = displayName;
+    profileMeta.textContent = "Guest mode is active. Your party code works right now.";
+    updateSyncCodeUI();
     setSignedOutDashboardUI();
+    connect();
     return;
   }
 

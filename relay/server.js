@@ -166,6 +166,7 @@ function ensureRuntimeUser(userId, displayName) {
       preferences: defaultPreferences(),
       lastAccessToken: null,
       lastSeenAt: Date.now(),
+      guest: false,
     });
   } else if (displayName) {
     runtimeUsers.get(userId).displayName = normalizeDisplayName(displayName);
@@ -501,8 +502,26 @@ async function fetchVerifiedSession({ accessToken, sessionId, initiatorId, recip
 }
 
 async function validateUserIdentity(message, socket) {
-  if (!message.userId || !message.clientId || !message.accessToken) {
-    sendProtocolError(socket, "Registration requires userId, clientId, and an access token.", true);
+  if (!message.userId || !message.clientId) {
+    sendProtocolError(socket, "Registration requires userId and clientId.", true);
+    return null;
+  }
+
+  if (message.guest === true) {
+    if (!String(message.userId).startsWith("guest:")) {
+      sendProtocolError(socket, "Guest registration requires a guest identity.", true);
+      return null;
+    }
+
+    const user = ensureRuntimeUser(message.userId, message.displayName || "Guest");
+    user.lastSeenAt = Date.now();
+    user.preferences = normalizePreferences(message.preferences);
+    user.guest = true;
+    return user;
+  }
+
+  if (!message.accessToken) {
+    sendProtocolError(socket, "Registration requires an access token.", true);
     return null;
   }
 
@@ -522,7 +541,19 @@ async function validateUserIdentity(message, socket) {
   user.lastAccessToken = message.accessToken;
   user.lastSeenAt = Date.now();
   user.preferences = normalizePreferences(message.preferences);
+  user.guest = false;
   return user;
+}
+
+function sendPreferenceNudge(targetUserId, initiatorDisplayName, reason) {
+  const message = reason === "extension-disabled"
+    ? `${initiatorDisplayName} tried to send you a drawing, but you are not accepting drawings right now.`
+    : `${initiatorDisplayName} tried to send you a surprise, but your receiving setting is turned off right now.`;
+
+  sendToUser(targetUserId, {
+    type: "guest-preference-nudge",
+    message,
+  });
 }
 
 const httpServer = http.createServer((request, response) => {
@@ -717,13 +748,14 @@ wss.on("connection", (socket) => {
       const targetUserId = typeof message.targetUserId === "string" ? message.targetUserId : "";
       const mode = message.mode === "live" ? "live" : message.mode === "send" ? "send" : "";
       const rpcSessionId = typeof message.rpcSessionId === "string" ? message.rpcSessionId : "";
+      const guestSession = message.guestSession === true;
       const sessionAccessToken = typeof message.accessToken === "string" ? message.accessToken : user.lastAccessToken;
 
       if (sessionAccessToken) {
         user.lastAccessToken = sessionAccessToken;
       }
 
-      if (!targetUserId || !mode || !rpcSessionId) {
+      if (!targetUserId || !mode || (!rpcSessionId && !guestSession)) {
         sendProtocolError(socket, "The session start payload is invalid.");
         return;
       }
@@ -741,6 +773,52 @@ wss.on("connection", (socket) => {
       const targetClientId = getPreferredClientId(targetUserId);
       if (!targetClientId) {
         sendProtocolError(socket, "The selected user's active window could not be found.");
+        return;
+      }
+
+      const targetUser = ensureRuntimeUser(targetUserId);
+
+      if (targetUser.preferences.extensionEnabled === false) {
+        sendProtocolError(socket, `${targetUser.displayName} is online but not accepting drawings right now.`);
+        sendPreferenceNudge(targetUserId, user.displayName, "extension-disabled");
+        return;
+      }
+
+      if (mode === "send" && targetUser.preferences.allowSurprise === false) {
+        sendProtocolError(socket, `${targetUser.displayName} has receiving drawings turned off right now.`);
+        sendPreferenceNudge(targetUserId, user.displayName, "surprise-disabled");
+        return;
+      }
+
+      if (guestSession) {
+        closeUserSession(userId, "A new guest session was started.");
+        closeUserSession(targetUserId, "A new guest session was started.");
+
+        const session = {
+          sessionId: `guest-${crypto.randomUUID()}`,
+          mode,
+          initiatorId: userId,
+          participants: [userId, targetUserId],
+          clientIds: {
+            [userId]: socket.clientId,
+            [targetUserId]: targetClientId,
+          },
+        };
+
+        sessions.set(session.sessionId, session);
+        activeSessionByUserId.set(userId, session.sessionId);
+        activeSessionByUserId.set(targetUserId, session.sessionId);
+        metrics.startedSessions += 1;
+        writeLog("info", "guest_session_started", {
+          sessionId: session.sessionId,
+          mode,
+          initiatorId: userId,
+          recipientId: targetUserId,
+        });
+
+        sendSessionStarted(userId, session, false);
+        sendSessionStarted(targetUserId, session, false);
+        broadcastPresenceState();
         return;
       }
 
