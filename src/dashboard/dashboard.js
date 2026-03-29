@@ -30,7 +30,7 @@ import {
 const params = new URLSearchParams(window.location.search);
 const rawServerUrl = params.get("serverUrl") || "https://sync-sketch-party.onrender.com";
 const clientId = crypto.randomUUID();
-const socialRefreshIntervalMs = 7000;
+const socialRefreshIntervalMs = 3000;
 
 const layout = document.getElementById("layout");
 const profileName = document.getElementById("profileName");
