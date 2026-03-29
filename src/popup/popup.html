@@ -80,16 +80,31 @@
       </section>
 
       <form id="session-form" class="settings-form">
-        <details class="settings-shell">
+        <details id="settingsShell" class="settings-shell">
           <summary>
             <span>
-              <strong>Preferences</strong>
-              <small>Visibility, surprise permissions, and connection</small>
+              <strong id="settingsTitle">Preferences</strong>
+              <small id="settingsSubtitle">Visibility, surprise permissions, and connection</small>
             </span>
-            <span class="summary-pill">Settings</span>
+            <span id="settingsSummaryPill" class="summary-pill">Settings</span>
           </summary>
 
           <div class="settings-body">
+            <section id="signedInSummary" class="signed-in-summary hidden">
+              <div class="signed-in-copy">
+                <strong id="compactAccountName">Sketch Party</strong>
+                <p id="compactAccountHint">Your board controls and party code live here now.</p>
+              </div>
+              <div class="code-row">
+                <span class="code-label">Party code</span>
+                <div class="code-box">
+                  <strong id="popupPartyCode">-</strong>
+                  <button id="copyPopupPartyCode" class="ghost-button compact-button" type="button">Copy</button>
+                </div>
+              </div>
+              <button id="compactSignOutButton" type="button" class="ghost-button compact-sign-out">Sign out</button>
+            </section>
+
             <label class="field">
               <span>Server URL</span>
               <input id="serverUrl" name="serverUrl" type="url" placeholder="https://sync-sketch-party.onrender.com" required />

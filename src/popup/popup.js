@@ -1,6 +1,7 @@
 import { track } from "../lib/analytics.js";
 import { getSketchPartyAvatarDataUrl } from "../lib/avatar.js";
 import { getCurrentUser, onAuthStateChange, signInWithGoogle, signOut } from "../lib/auth.js";
+import { createPartyCode } from "../lib/party-code.js";
 import {
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
   POPUP_HERO_DISMISSED_KEY,
@@ -22,6 +23,7 @@ const QUICK_EFFECTS = {
 
 const form = document.getElementById("session-form");
 const accountCard = document.getElementById("accountCard");
+const settingsShell = document.getElementById("settingsShell");
 const heroCard = document.getElementById("heroCard");
 const closeHeroButton = document.getElementById("closeHeroButton");
 const onlinePresenceToggle = document.getElementById("onlinePresenceToggle");
@@ -39,6 +41,15 @@ const accountAvatar = document.getElementById("accountAvatar");
 const accountStatePill = document.getElementById("accountStatePill");
 const signInButton = document.getElementById("signInButton");
 const signOutButton = document.getElementById("signOutButton");
+const signedInSummary = document.getElementById("signedInSummary");
+const compactAccountName = document.getElementById("compactAccountName");
+const compactAccountHint = document.getElementById("compactAccountHint");
+const popupPartyCode = document.getElementById("popupPartyCode");
+const copyPopupPartyCode = document.getElementById("copyPopupPartyCode");
+const compactSignOutButton = document.getElementById("compactSignOutButton");
+const settingsTitle = document.getElementById("settingsTitle");
+const settingsSubtitle = document.getElementById("settingsSubtitle");
+const settingsSummaryPill = document.getElementById("settingsSummaryPill");
 const statusText = document.getElementById("statusText");
 const openBoardButton = document.getElementById("openBoardButton");
 const quickActionsBlock = document.getElementById("quickActionsBlock");
@@ -90,6 +101,14 @@ function toggleAuthenticatedUI(isAuthenticated) {
   quickEffectSelect.disabled = false;
   signInButton.classList.toggle("hidden", isAuthenticated);
   signOutButton.classList.toggle("hidden", !isAuthenticated);
+  signedInSummary.classList.toggle("hidden", !isAuthenticated);
+  accountCard.classList.toggle("hidden", isAuthenticated);
+  settingsShell.open = isAuthenticated;
+  settingsTitle.textContent = isAuthenticated ? "Board controls" : "Preferences";
+  settingsSubtitle.textContent = isAuthenticated
+    ? "Online status, party code, surprise permissions, and connection"
+    : "Visibility, surprise permissions, and connection";
+  settingsSummaryPill.textContent = isAuthenticated ? "Live" : "Settings";
 }
 
 function updateQuickActionsVisibility(friendCount) {
@@ -121,6 +140,7 @@ function applySignedInPendingUI(user) {
 
   currentState = {
     user: {
+      id: user?.id || "",
       displayName,
       email: user?.email || "",
     },
@@ -140,6 +160,9 @@ function applySignedInPendingUI(user) {
   accountStatePill.textContent = "Signed in";
   accountStatePill.style.background = "var(--success)";
   onlinePresenceToggle.checked = true;
+  compactAccountName.textContent = displayName;
+  compactAccountHint.textContent = "Your controls and party code are ready.";
+  popupPartyCode.textContent = createPartyCode(user?.id || displayName);
   statusText.textContent = "Finishing setup and loading your friends...";
   accountCard.classList.remove("is-signed-out-minimal");
   accountCard.classList.add("is-signed-in-minimal");
@@ -198,6 +221,7 @@ async function applyBootstrapState(state) {
     accountStatePill.style.background = "#f3e5d5";
     onlinePresenceToggle.checked = false;
     statusText.textContent = "Open the board anytime or sign in here.";
+    popupPartyCode.textContent = "-";
     serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
     syncEffectEntitlementUI(null);
     accountCard.classList.add("is-signed-out-minimal");
@@ -215,6 +239,9 @@ async function applyBootstrapState(state) {
   accountTitle.textContent = state.user.displayName;
   accountSubtitle.textContent = state.user.email || "Your Sketch Party account is connected.";
   applyAvatar(state.user.id || state.user.displayName, state.user.displayName);
+  compactAccountName.textContent = state.user.displayName;
+  compactAccountHint.textContent = `${state.friends.length} friends ready.`;
+  popupPartyCode.textContent = createPartyCode(state.user.id || state.user.displayName);
   accountStatePill.textContent = state.preferences.extensionEnabled
     ? (state.preferences.appearOnline ? "Online" : "Hidden")
     : "Inactive";
@@ -308,6 +335,23 @@ signOutButton.addEventListener("click", async () => {
     statusText.textContent = error.message || "Sign out failed.";
   } finally {
     signOutButton.disabled = false;
+  }
+});
+
+compactSignOutButton.addEventListener("click", async () => {
+  signOutButton.disabled = true;
+  compactSignOutButton.disabled = true;
+
+  try {
+    await signOut();
+    quickEffectSelect.value = "";
+    await applyBootstrapState(null);
+  } catch (error) {
+    console.error(error);
+    statusText.textContent = error.message || "Sign out failed.";
+  } finally {
+    signOutButton.disabled = false;
+    compactSignOutButton.disabled = false;
   }
 });
 
@@ -408,6 +452,15 @@ onAuthStateChange((event, session) => {
 closeHeroButton.addEventListener("click", async () => {
   await setLocalObject(POPUP_HERO_DISMISSED_KEY, true);
   heroCard.classList.add("hidden");
+});
+
+copyPopupPartyCode.addEventListener("click", async () => {
+  if (!popupPartyCode.textContent || popupPartyCode.textContent === "-") {
+    return;
+  }
+
+  await navigator.clipboard.writeText(popupPartyCode.textContent);
+  statusText.textContent = "Party code copied.";
 });
 
 void applyHeroVisibility();
