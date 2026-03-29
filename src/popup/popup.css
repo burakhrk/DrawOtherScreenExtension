@@ -155,6 +155,25 @@ h2 {
   gap: 10px;
 }
 
+.account-card.is-signed-out-minimal {
+  padding: 12px 14px;
+  gap: 0;
+}
+
+.account-card.is-signed-out-minimal .account-topbar,
+.account-card.is-signed-out-minimal .account-main,
+.account-card.is-signed-out-minimal #signOutButton {
+  display: none;
+}
+
+.account-card.is-signed-out-minimal .account-actions {
+  justify-content: stretch;
+}
+
+.account-card.is-signed-out-minimal #signInButton {
+  width: 100%;
+}
+
 .account-card.is-signed-in-minimal .account-avatar,
 .account-card.is-signed-in-minimal #accountSubtitle {
   display: none;

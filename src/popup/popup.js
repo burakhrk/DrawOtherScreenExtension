@@ -132,6 +132,7 @@ function applySignedInPendingUI(user) {
   accountStatePill.style.background = "var(--success)";
   onlinePresenceToggle.checked = true;
   statusText.textContent = "Finishing setup and loading your friends...";
+  accountCard.classList.remove("is-signed-out-minimal");
   accountCard.classList.add("is-signed-in-minimal");
   syncEffectEntitlementUI(null);
   updateQuickActionsVisibility(0);
@@ -181,15 +182,16 @@ async function applyBootstrapState(state) {
   friendOnlineNotificationsInput.checked = Boolean(notificationsEnabled);
 
   if (!state) {
-    accountTitle.textContent = "Waiting for Google sign-in";
-    accountSubtitle.textContent = "Once you sign in, your friends and preferences will load again.";
+    accountTitle.textContent = "Sketch Party";
+    accountSubtitle.textContent = "";
     accountAvatar.textContent = "SP";
     accountStatePill.textContent = "Not ready";
     accountStatePill.style.background = "#f3e5d5";
     onlinePresenceToggle.checked = false;
-    statusText.textContent = "Sign in first, then open your board.";
+    statusText.textContent = "Open the board anytime or sign in here.";
     serverUrlInput.value = (await getLocalObject(PROFILE_STORAGE_KEY, {}))?.serverUrl || DEFAULT_SERVER_URL;
     syncEffectEntitlementUI(null);
+    accountCard.classList.add("is-signed-out-minimal");
     accountCard.classList.remove("is-signed-in-minimal");
     updateQuickActionsVisibility(0);
     toggleAuthenticatedUI(false);
@@ -212,6 +214,7 @@ async function applyBootstrapState(state) {
     : "#f3e5d5";
   syncEffectEntitlementUI(state.entitlement);
   statusText.textContent = `${state.friends.length} friends and ${state.incomingRequests.length} incoming requests are ready.`;
+  accountCard.classList.remove("is-signed-out-minimal");
   accountCard.classList.add("is-signed-in-minimal");
   updateQuickActionsVisibility(state.friends.length);
   toggleAuthenticatedUI(true);
