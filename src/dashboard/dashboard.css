@@ -340,6 +340,12 @@ h2 {
   justify-content: flex-end;
 }
 
+.icon-button {
+  min-width: 44px;
+  padding-inline: 0;
+  justify-content: center;
+}
+
 .tool {
   display: flex;
   align-items: center;
@@ -422,6 +428,130 @@ h2 {
   background: rgba(255, 250, 244, 0.7);
   color: var(--ink);
   font-weight: 700;
+}
+
+.onboarding-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(255, 244, 226, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.onboarding-card {
+  position: relative;
+  width: min(560px, 100%);
+  padding: 24px;
+  border: 2px solid rgba(32, 29, 23, 0.08);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(255, 241, 221, 0.96));
+  box-shadow: 0 16px 0 rgba(77, 43, 22, 0.07), 0 28px 42px rgba(77, 43, 22, 0.18);
+}
+
+.onboarding-card h3 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.onboarding-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+}
+
+.onboarding-visual {
+  margin-top: 18px;
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+}
+
+.onboarding-demo {
+  width: 100%;
+  display: grid;
+  gap: 14px;
+}
+
+.demo-chip {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #201d17;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.demo-canvas {
+  position: relative;
+  min-height: 170px;
+  border: 2px dashed rgba(32, 29, 23, 0.14);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(255, 208, 91, 0.22), transparent 18%),
+    radial-gradient(circle at 84% 20%, rgba(239, 106, 72, 0.15), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 248, 236, 0.98));
+  overflow: hidden;
+}
+
+.scribble,
+.spark {
+  position: absolute;
+  display: block;
+}
+
+.scribble {
+  border: 4px solid rgba(32, 29, 23, 0.9);
+  border-color: rgba(32, 29, 23, 0.9) transparent transparent transparent;
+  border-radius: 50%;
+}
+
+.scribble-one {
+  top: 28px;
+  left: 56px;
+  width: 90px;
+  height: 60px;
+  transform: rotate(-8deg);
+}
+
+.scribble-two {
+  top: 78px;
+  left: 140px;
+  width: 130px;
+  height: 88px;
+  transform: rotate(10deg);
+}
+
+.spark {
+  width: 18px;
+  height: 18px;
+  background: var(--accent-yellow);
+  clip-path: polygon(50% 0%, 63% 36%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0% 50%, 37% 36%);
+}
+
+.spark-one {
+  top: 36px;
+  right: 72px;
+}
+
+.onboarding-actions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.onboarding-progress {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .draw-guard-content {

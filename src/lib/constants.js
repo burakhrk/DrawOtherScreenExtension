@@ -13,3 +13,4 @@ export const QUICK_ACTION_KEY = "sync-sketch-quick-action";
 export const FRIEND_ONLINE_NOTIFICATION_KEY = "sketch-party-friend-online-notifications";
 export const FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY = "sketch-party-friend-online-notifications-enabled";
 export const POPUP_HERO_DISMISSED_KEY = "sketch-party-popup-hero-dismissed";
+export const DASHBOARD_ONBOARDING_SEEN_KEY = "sketch-party-dashboard-onboarding-seen";

@@ -1,5 +1,6 @@
 import { track } from "../lib/analytics.js";
 import {
+  DASHBOARD_ONBOARDING_SEEN_KEY,
   FRIEND_ONLINE_NOTIFICATION_KEY,
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
   FREE_EFFECTS,
@@ -62,6 +63,15 @@ const chatInput = document.getElementById("chatInput");
 const effectPicker = document.getElementById("effectPicker");
 const colorPicker = document.getElementById("colorPicker");
 const brushSize = document.getElementById("brushSize");
+const openOnboardingButton = document.getElementById("openOnboardingButton");
+const onboardingOverlay = document.getElementById("onboardingOverlay");
+const onboardingTitle = document.getElementById("onboardingTitle");
+const onboardingText = document.getElementById("onboardingText");
+const onboardingVisual = document.getElementById("onboardingVisual");
+const onboardingStepIndicator = document.getElementById("onboardingStepIndicator");
+const onboardingPrevButton = document.getElementById("onboardingPrevButton");
+const onboardingNextButton = document.getElementById("onboardingNextButton");
+const closeOnboardingButton = document.getElementById("closeOnboardingButton");
 const clearCanvasButton = document.getElementById("clearCanvas");
 const sendDraftButton = document.getElementById("sendDraft");
 const leaveSessionButton = document.getElementById("leaveSession");
@@ -97,6 +107,63 @@ let chatPanelOpen = false;
 let unreadMessageCount = 0;
 let latestMessagePreview = "Messages";
 let hasDirectMessages = false;
+let onboardingStep = 0;
+
+const onboardingSteps = [
+  {
+    title: "Draw something fun",
+    text: "Use the board to sketch a quick idea, a prank, or a reaction. Drafts stay here until you choose who should get them.",
+    chip: "Draw here",
+    scene: `
+      <div class="onboarding-demo">
+        <span class="demo-chip">Draw here</span>
+        <div class="demo-canvas">
+          <span class="scribble scribble-one"></span>
+          <span class="scribble scribble-two"></span>
+          <span class="spark spark-one"></span>
+        </div>
+      </div>
+    `,
+  },
+  {
+    title: "Choose a friend",
+    text: "Pick someone from the left, send a quick drawing, or open a text session. Party codes and friend requests make pairing fast.",
+    chip: "Choose a friend",
+    scene: `
+      <div class="onboarding-demo">
+        <span class="demo-chip">Choose a friend</span>
+        <div class="demo-canvas">
+          <div style="position:absolute; top:20px; left:22px; right:22px; display:grid; gap:12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-radius:18px; background:white; box-shadow:0 10px 18px rgba(32,29,23,0.08);">
+              <strong>Maya</strong>
+              <span class="status-dot online">Online</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <span class="demo-chip" style="background:var(--accent);">Send drawing</span>
+              <span class="demo-chip" style="background:#3a3128;">Text</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `,
+  },
+  {
+    title: "Let it pop on their page",
+    text: "When your friend is online and allows surprises, your drawing or effect can suddenly appear over the page they are browsing.",
+    chip: "It pops up here",
+    scene: `
+      <div class="onboarding-demo">
+        <span class="demo-chip">It pops up here</span>
+        <div class="demo-canvas">
+          <div style="position:absolute; inset:18px; border-radius:20px; background:linear-gradient(180deg,#ffffff,#f7f1e7); border:2px solid rgba(32,29,23,0.08);"></div>
+          <div style="position:absolute; top:40px; left:34px; right:34px; height:14px; border-radius:999px; background:rgba(32,29,23,0.08);"></div>
+          <span class="scribble scribble-one" style="top:58px; left:110px; width:120px; height:82px;"></span>
+          <span class="spark spark-one" style="top:54px; right:110px;"></span>
+        </div>
+      </div>
+    `,
+  },
+];
 
 function setSignedOutDashboardUI() {
   profileName.textContent = "Open the board first, sign in here";
@@ -127,16 +194,9 @@ function setSignedOutDashboardUI() {
   drawGuard.classList.remove("hidden");
   drawGuard.innerHTML = `
     <div class="draw-guard-content">
-      <p>Open the board anytime, then sign in with Google to load your Sketch Party account and start sending drawings.</p>
-      <button id="drawGuardSignInButton" class="auth-button" type="button">Sign in with Google</button>
+      <p>Sketch Party works best once you sign in, add a friend, and send your first surprise from the board.</p>
     </div>
   `;
-  const drawGuardSignInButton = document.getElementById("drawGuardSignInButton");
-  if (drawGuardSignInButton) {
-    drawGuardSignInButton.addEventListener("click", () => {
-      void handleDashboardSignIn();
-    });
-  }
 }
 
 function setSignedInDashboardUI() {
@@ -177,6 +237,38 @@ function openInbox({ focusComposer = false } = {}) {
 function closeInbox() {
   chatPanelOpen = false;
   updateInboxUI();
+}
+
+async function markOnboardingSeen() {
+  await setLocalObject(DASHBOARD_ONBOARDING_SEEN_KEY, true);
+}
+
+function renderOnboardingStep() {
+  const step = onboardingSteps[onboardingStep];
+  onboardingTitle.textContent = step.title;
+  onboardingText.textContent = step.text;
+  onboardingVisual.innerHTML = step.scene;
+  onboardingStepIndicator.textContent = `${onboardingStep + 1} / ${onboardingSteps.length}`;
+  onboardingPrevButton.disabled = onboardingStep === 0;
+  onboardingNextButton.textContent = onboardingStep === onboardingSteps.length - 1 ? "Got it" : "Next";
+}
+
+async function openOnboarding({ force = false } = {}) {
+  if (!force) {
+    const seen = await getLocalObject(DASHBOARD_ONBOARDING_SEEN_KEY, false);
+    if (seen) {
+      return;
+    }
+  }
+
+  onboardingStep = 0;
+  renderOnboardingStep();
+  onboardingOverlay.classList.remove("hidden");
+}
+
+async function closeOnboarding() {
+  onboardingOverlay.classList.add("hidden");
+  await markOnboardingSeen();
 }
 
 function getTodayStamp() {
@@ -1457,6 +1549,7 @@ async function initialize() {
   updateSessionUI();
   setStatus("Loading account...");
   setGlobalStatus("Connecting");
+  void openOnboarding();
 
   const user = await getCurrentUser();
   if (!user) {
@@ -1491,6 +1584,29 @@ async function initialize() {
 
 dashboardSignInButton.addEventListener("click", () => {
   void handleDashboardSignIn();
+});
+
+openOnboardingButton.addEventListener("click", () => {
+  void openOnboarding({ force: true });
+});
+
+closeOnboardingButton.addEventListener("click", () => {
+  void closeOnboarding();
+});
+
+onboardingPrevButton.addEventListener("click", () => {
+  onboardingStep = Math.max(0, onboardingStep - 1);
+  renderOnboardingStep();
+});
+
+onboardingNextButton.addEventListener("click", () => {
+  if (onboardingStep === onboardingSteps.length - 1) {
+    void closeOnboarding();
+    return;
+  }
+
+  onboardingStep += 1;
+  renderOnboardingStep();
 });
 
 void initialize().catch((error) => {
