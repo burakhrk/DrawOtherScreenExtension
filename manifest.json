@@ -10,7 +10,7 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "https://euzeprutflhfavzxuwfs.supabase.co/*"
+    "https://lpgdopfqvertiwcmyokh.supabase.co/*"
   ],
   "background": {
     "service_worker": "src/background/background.js"

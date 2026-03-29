@@ -6,8 +6,8 @@ const host = process.env.HOST || "0.0.0.0";
 const reconnectGraceMs = Number(process.env.RECONNECT_GRACE_MS || 8000);
 const maxPayloadBytes = Number(process.env.MAX_PAYLOAD_BYTES || 32 * 1024);
 const appId = process.env.APP_ID || "sketch-party";
-const supabaseUrl = process.env.SUPABASE_URL || "https://euzeprutflhfavzxuwfs.supabase.co";
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1emVwcnV0ZmxoZmF2enh1d2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODIzMTgsImV4cCI6MjA4OTI1ODMxOH0.C80nlS1Y_p8faRp2vHkRpGfVoYRubHH9Ja7yfxyPmbw";
+const supabaseUrl = process.env.SUPABASE_URL || "https://lpgdopfqvertiwcmyokh.supabase.co";
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2RvcGZxdmVydGl3Y215b2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzkwNTksImV4cCI6MjA4OTI1NTA1OX0.FoEinT6HMlAn8kBBS5Lxw-DDk9PjwZnrr8bJhW5kVXY";
 
 const sessions = new Map();
 const socketsByUserId = new Map();
