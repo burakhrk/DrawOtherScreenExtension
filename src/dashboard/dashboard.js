@@ -55,6 +55,7 @@ const requestList = document.getElementById("requestList");
 const friendsList = document.getElementById("friendsList");
 const sessionTitle = document.getElementById("sessionTitle");
 const sessionModeText = document.getElementById("sessionModeText");
+const selectedTargetPill = document.getElementById("selectedTargetPill");
 const presence = document.getElementById("presence");
 const statusPill = document.getElementById("statusPill");
 const drawGuard = document.getElementById("drawGuard");
@@ -80,6 +81,8 @@ const onboardingNextButton = document.getElementById("onboardingNextButton");
 const closeOnboardingButton = document.getElementById("closeOnboardingButton");
 const clearCanvasButton = document.getElementById("clearCanvas");
 const sendDraftButton = document.getElementById("sendDraft");
+const messageFriendButton = document.getElementById("messageFriend");
+const startLiveModeButton = document.getElementById("startLiveMode");
 const leaveSessionButton = document.getElementById("leaveSession");
 const canvas = document.getElementById("drawCanvas");
 const context = canvas.getContext("2d", { willReadFrequently: true });
@@ -104,6 +107,7 @@ let currentRpcSession = null;
 let draftSegments = [];
 let pendingDraftTarget = null;
 let pendingTextTarget = null;
+let selectedFriendId = "";
 let onlineUserIds = new Set();
 let previousOnlineUserIds = new Set();
 let hasPresenceSnapshot = false;
@@ -939,6 +943,23 @@ function getFriendOnline(friendId) {
   return onlineUserIds.has(friendId);
 }
 
+function getSelectedFriend() {
+  return friends.find((friend) => friend.userId === selectedFriendId) || null;
+}
+
+function selectFriend(userId, { quiet = false } = {}) {
+  selectedFriendId = userId || "";
+  renderFriends();
+  updateSessionUI();
+
+  if (!quiet) {
+    const friend = getSelectedFriend();
+    if (friend) {
+      setStatus(`${friend.displayName} selected`, "ok");
+    }
+  }
+}
+
 function renderRequests() {
   requestList.innerHTML = "";
 
@@ -994,11 +1015,9 @@ function renderFriends() {
   for (const friend of friends) {
     const online = getFriendOnline(friend.userId);
     const card = document.createElement("article");
-    card.className = "friend-card";
-    const disabled = online ? "" : "disabled";
-    const surpriseDisabled = allowSurprise ? "" : "disabled";
-    const draftDisabled = draftSegments.length > 0 && online ? "" : "disabled";
-    const liveLocked = !entitlement?.isPro;
+    const isSelected = selectedFriendId === friend.userId;
+    card.className = `friend-card${isSelected ? " is-selected" : ""}`;
+    card.dataset.userId = friend.userId;
 
       card.innerHTML = `
         <div class="friend-top">
@@ -1013,12 +1032,7 @@ function renderFriends() {
             ${online ? "Online" : "Offline"}
         </span>
       </div>
-      <div class="friend-actions">
-        <button class="mode-button" data-user-id="${friend.userId}" data-mode="send" ${disabled} ${allowSurprise ? "" : surpriseDisabled}>Send drawing</button>
-        <button class="mode-button" data-user-id="${friend.userId}" data-mode="text" ${disabled}>Text</button>
-        <button class="mode-button ${liveLocked ? "pro-lock" : ""}" data-user-id="${friend.userId}" data-mode="live" ${disabled} ${liveLocked ? "data-pro-lock=\"true\"" : ""}>${liveLocked ? "Live mode - Pro" : "Live mode"}</button>
-        <button class="mode-button" data-user-id="${friend.userId}" data-mode="draft" ${draftDisabled}>Send draft</button>
-      </div>
+      <div class="friend-card-note"><strong>${isSelected ? "Selected" : "Click to select"}</strong><span>${online ? "Ready to receive" : "Wait until they come online"}</span></div>
     `;
 
     friendsList.appendChild(card);
@@ -1027,21 +1041,39 @@ function renderFriends() {
 
 function updateSessionUI() {
   const hasSession = Boolean(currentSession);
+  const selectedFriend = getSelectedFriend();
+  const selectedFriendOnline = selectedFriend ? getFriendOnline(selectedFriend.userId) : false;
   chatInput.disabled = !hasSession;
   clearCanvasButton.disabled = !hasSession && draftSegments.length === 0;
-  sendDraftButton.disabled = draftSegments.length === 0;
+  sendDraftButton.disabled = draftSegments.length === 0 || !selectedFriend;
+  messageFriendButton.disabled = !selectedFriend;
+  startLiveModeButton.disabled = !selectedFriend || !selectedFriendOnline || !entitlement?.isPro;
   leaveSessionButton.disabled = !hasSession;
+  selectedTargetPill.classList.toggle("hidden", !selectedFriend || hasSession);
+  if (selectedFriend && !hasSession) {
+    selectedTargetPill.textContent = `Selected: ${selectedFriend.displayName}`;
+  }
 
   if (!hasSession) {
-    sessionTitle.textContent = draftSegments.length > 0 ? "Draft ready" : "Choose a friend";
-    sessionModeText.textContent = draftSegments.length > 0
-      ? `${draftSegments.length} items are ready. Choose a friend on the left and press Send draft.`
-      : "Choose someone on the left to start drawing, or prepare a draft first.";
-    presence.textContent = "Waiting for a friend";
+    sessionTitle.textContent = selectedFriend ? selectedFriend.displayName : (draftSegments.length > 0 ? "Draft ready" : "Choose a friend");
+    sessionModeText.textContent = selectedFriend
+      ? (draftSegments.length > 0
+          ? `${draftSegments.length} draft items are ready to send to ${selectedFriend.displayName}.`
+          : `Draw anything, then send it to ${selectedFriend.displayName}.`)
+      : (draftSegments.length > 0
+          ? `${draftSegments.length} items are ready. Choose a friend on the left and press Send draft.`
+          : "Choose someone from the left to start drawing.");
+    presence.textContent = selectedFriend
+      ? (selectedFriendOnline ? "Selected friend is online" : "Selected friend is offline")
+      : "Waiting for a friend";
     drawGuard.classList.remove("hidden");
-    drawGuard.textContent = draftSegments.length > 0
-      ? "Your draft is saved. Now choose a recipient from the left."
-      : "There is no active session. Draw here first, then choose a recipient.";
+    drawGuard.textContent = selectedFriend
+      ? (draftSegments.length > 0
+          ? `Your draft is ready for ${selectedFriend.displayName}.`
+          : `There is no active session. Draw here first, then send it to ${selectedFriend.displayName}.`)
+      : (draftSegments.length > 0
+          ? "Your draft is saved. Now choose a recipient from the left."
+          : "There is no active session. Draw here first, then choose a recipient.");
     updateInboxUI();
     return;
   }
@@ -1054,6 +1086,7 @@ function updateSessionUI() {
   sessionTitle.textContent = currentSession.partner.displayName;
   sessionModeText.textContent = `${modeLabel} - ${modeHint}`;
   presence.textContent = getFriendOnline(currentSession.partner.userId) ? "Selected friend is online" : "Selected friend is offline";
+  selectedTargetPill.classList.add("hidden");
   drawGuard.classList.add("hidden");
   updateInboxUI();
 }
@@ -1071,6 +1104,9 @@ function applySocialState(state) {
   incomingRequests = state.incomingRequests;
   outgoingRequests = state.outgoingRequests;
   partyCode = createPartyCode(userId);
+  if (selectedFriendId && !friends.some((friend) => friend.userId === selectedFriendId)) {
+    selectedFriendId = "";
+  }
 
   profileName.textContent = displayName;
   profileAvatar.style.setProperty("--avatar-image", `url("${state.user.avatarUrl || getSketchPartyAvatarDataUrl(userId, displayName)}")`);
@@ -1287,6 +1323,7 @@ function connect() {
     }
 
     if (message.type === "session-started") {
+      selectFriend(message.partner.userId, { quiet: true });
       currentSession = {
         sessionId: message.sessionId,
         mode: message.mode,
@@ -1569,6 +1606,13 @@ sendDraftButton.addEventListener("click", () => {
     return;
   }
 
+  const selectedFriend = getSelectedFriend();
+  if (selectedFriend) {
+    pendingDraftTarget = { userId: selectedFriend.userId };
+    void handleSessionStart(selectedFriend.userId, "send");
+    return;
+  }
+
   const onlineFriends = friends.filter((friend) => getFriendOnline(friend.userId));
   if (onlineFriends.length === 1) {
     pendingDraftTarget = { userId: onlineFriends[0].userId };
@@ -1578,8 +1622,41 @@ sendDraftButton.addEventListener("click", () => {
 
   addMessage({
     system: true,
-    text: "Your draft is ready. Press Send draft next to a friend in the list on the left.",
+    text: "Your draft is ready. Select a friend on the left first.",
   });
+});
+
+messageFriendButton.addEventListener("click", () => {
+  const selectedFriend = getSelectedFriend();
+  if (!selectedFriend) {
+    setStatus("Select a friend first");
+    return;
+  }
+
+  pendingTextTarget = { userId: selectedFriend.userId };
+  openInbox({ focusComposer: false });
+  void handleSessionStart(selectedFriend.userId, "send");
+});
+
+startLiveModeButton.addEventListener("click", () => {
+  const selectedFriend = getSelectedFriend();
+  if (!selectedFriend) {
+    setStatus("Select a friend first");
+    return;
+  }
+
+  if (!entitlement?.isPro) {
+    setStatus("Live drawing is available to Pro members");
+    void openPaywall("live-mode-locked");
+    return;
+  }
+
+  if (!getFriendOnline(selectedFriend.userId)) {
+    setStatus(`${selectedFriend.displayName} is offline right now`);
+    return;
+  }
+
+  void handleSessionStart(selectedFriend.userId, "live");
 });
 
 leaveSessionButton.addEventListener("click", async () => {
@@ -1602,29 +1679,11 @@ leaveSessionButton.addEventListener("click", async () => {
 });
 
 friendsList.addEventListener("click", (event) => {
-  const button = event.target.closest(".mode-button");
-  if (!button) {
+  const card = event.target.closest(".friend-card");
+  if (!card) {
     return;
   }
-
-  if (button.dataset.proLock === "true") {
-    setStatus("Live drawing is available to Pro members");
-    void openPaywall("live-mode-locked");
-    return;
-  }
-
-  if (button.dataset.mode === "text") {
-    pendingTextTarget = { userId: button.dataset.userId };
-    openInbox({ focusComposer: false });
-    void handleSessionStart(button.dataset.userId, "send");
-    return;
-  }
-
-  const mode = button.dataset.mode === "draft" ? "send" : button.dataset.mode;
-  if (button.dataset.mode === "draft") {
-    pendingDraftTarget = { userId: button.dataset.userId };
-  }
-  void handleSessionStart(button.dataset.userId, mode);
+  selectFriend(card.dataset.userId);
 });
 
 requestList.addEventListener("click", (event) => {

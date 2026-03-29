@@ -92,6 +92,7 @@
             <p class="eyebrow">Active session</p>
             <h2 id="sessionTitle">Choose a friend</h2>
             <p id="sessionModeText" class="subtle">Pick someone from the left to start drawing.</p>
+            <div id="selectedTargetPill" class="selected-target-pill hidden">Selected: -</div>
           </div>
 
           <div class="toolbar">
@@ -134,6 +135,8 @@
             </div>
 
             <div class="toolbar-cluster toolbar-actions">
+              <button id="messageFriend" class="ghost toolbar-action" type="button">Message</button>
+              <button id="startLiveMode" class="ghost toolbar-action" type="button">Live mode</button>
               <button id="clearCanvas" class="ghost toolbar-action" type="button">Clear</button>
               <button id="sendDraft" class="ghost toolbar-action accent-action" type="button">Send draft</button>
               <button id="leaveSession" class="ghost toolbar-action" type="button">End session</button>
