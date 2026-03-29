@@ -19,6 +19,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow: hidden;
   color: var(--ink);
   background:
     radial-gradient(circle at top left, rgba(255, 146, 102, 0.28), transparent 22%),
@@ -28,7 +29,7 @@ body {
 }
 
 .layout {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr) 360px;
   gap: 18px;
@@ -55,8 +56,8 @@ body {
 }
 
 .friends-panel {
-  display: grid;
-  grid-template-rows: auto auto auto 1fr;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -64,11 +65,13 @@ body {
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
+  min-height: 0;
 }
 
 .chat-panel {
   display: grid;
   grid-template-rows: auto 1fr auto;
+  min-height: 0;
 }
 
 .chat-head-actions {
@@ -84,7 +87,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 22px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -118,7 +121,7 @@ h2 {
 .membership-card,
 .pair-form,
 .friends-list-shell {
-  padding: 18px 22px;
+  padding: 14px 18px;
 }
 
 .sync-card {
@@ -135,7 +138,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 18px 22px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(135deg, rgba(255, 232, 205, 0.78), rgba(255, 255, 255, 0.52));
 }
@@ -157,7 +160,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 245, 230, 0.72));
 }
 
@@ -180,7 +183,7 @@ h2 {
 
 .pair-form {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -190,7 +193,7 @@ h2 {
 
 .pair-form label {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   font-size: 13px;
   font-weight: 600;
 }
@@ -200,7 +203,7 @@ h2 {
   width: 100%;
   border-radius: 18px;
   border: 2px solid rgba(32, 29, 23, 0.08);
-  padding: 12px 14px;
+  padding: 10px 12px;
   font-size: 14px;
   box-shadow: inset 0 -2px 0 rgba(32, 29, 23, 0.05);
 }
@@ -209,7 +212,7 @@ h2 {
 .chat-form button {
   border: 2px solid rgba(32, 29, 23, 0.08);
   border-radius: 999px;
-  padding: 11px 15px;
+  padding: 10px 14px;
   font-weight: 700;
   cursor: pointer;
   color: white;
@@ -226,26 +229,33 @@ h2 {
 
 .friends-list-shell {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .friends-list {
-  margin-top: 14px;
+  margin-top: 10px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
   overflow: auto;
   align-content: start;
+  min-height: 0;
+  padding-right: 2px;
 }
 
 .request-list {
-  margin-top: 14px;
+  margin-top: 10px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  max-height: 148px;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .request-card {
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 2px solid rgba(32, 29, 23, 0.07);
   border-radius: 20px;
   background: linear-gradient(135deg, #fff8ea, #fff1d7);
@@ -253,7 +263,7 @@ h2 {
 }
 
 .request-actions {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   gap: 8px;
 }
@@ -261,7 +271,7 @@ h2 {
 .mini-button {
   border: 2px solid rgba(32, 29, 23, 0.07);
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 7px 11px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -271,7 +281,7 @@ h2 {
 }
 
 .friend-card {
-  padding: 14px;
+  padding: 12px;
   border: 2px solid rgba(32, 29, 23, 0.07);
   border-radius: 22px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 236, 0.92));
@@ -287,7 +297,7 @@ h2 {
 }
 
 .friend-actions {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .friend-meta {
@@ -415,13 +425,13 @@ h2 {
   background: white;
   color: var(--ink);
   font-size: 13px;
-  min-width: 150px;
+  min-width: 142px;
 }
 
 .ghost {
   border: 2px solid rgba(32, 29, 23, 0.08);
   border-radius: 999px;
-  padding: 11px 15px;
+  padding: 10px 14px;
   font-weight: 700;
   cursor: pointer;
   color: var(--ink);
@@ -662,7 +672,7 @@ h2 {
 }
 
 .messages {
-  padding: 18px;
+  padding: 16px;
   overflow: auto;
   display: grid;
   align-content: start;
@@ -693,7 +703,7 @@ h2 {
 }
 
 .chat-form {
-  padding: 18px;
+  padding: 16px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
@@ -771,8 +781,14 @@ h2 {
 }
 
 @media (max-width: 1200px) {
+  body {
+    overflow: auto;
+  }
+
   .layout {
     grid-template-columns: 300px minmax(0, 1fr);
+    height: auto;
+    min-height: 100vh;
   }
 
   .chat-panel {
@@ -784,6 +800,7 @@ h2 {
 @media (max-width: 980px) {
   .layout {
     grid-template-columns: 1fr;
+    height: auto;
   }
 
   .friends-panel {
