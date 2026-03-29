@@ -35,6 +35,10 @@ body {
   padding: 18px;
 }
 
+.layout.chat-collapsed {
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+
 .friends-panel,
 .stage,
 .chat-panel {
@@ -65,6 +69,12 @@ body {
 .chat-panel {
   display: grid;
   grid-template-rows: auto 1fr auto;
+}
+
+.chat-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .panel-head,
@@ -431,6 +441,42 @@ h2 {
   display: none;
 }
 
+.inbox-dock {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 2px solid rgba(32, 29, 23, 0.08);
+  border-radius: 999px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #201d17, #49382d);
+  color: white;
+  box-shadow: 0 12px 0 rgba(32, 29, 23, 0.08), 0 18px 30px rgba(32, 29, 23, 0.18);
+  cursor: pointer;
+}
+
+.inbox-dock-label {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.inbox-dock-badge {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff7d5b;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .presence {
   padding: 8px 12px;
   border-radius: 999px;
@@ -578,5 +624,10 @@ h2 {
     left: 16px;
     bottom: 16px;
     width: auto;
+  }
+
+  .inbox-dock {
+    right: 16px;
+    bottom: 16px;
   }
 }

@@ -27,6 +27,7 @@ const rawServerUrl = params.get("serverUrl") || "https://sync-sketch-party.onren
 const clientId = crypto.randomUUID();
 const socialRefreshIntervalMs = 7000;
 
+const layout = document.getElementById("layout");
 const profileName = document.getElementById("profileName");
 const profileMeta = document.getElementById("profileMeta");
 const globalStatus = document.getElementById("globalStatus");
@@ -50,6 +51,10 @@ const sessionModeText = document.getElementById("sessionModeText");
 const presence = document.getElementById("presence");
 const statusPill = document.getElementById("statusPill");
 const drawGuard = document.getElementById("drawGuard");
+const chatPanel = document.getElementById("chatPanel");
+const closeChatPanelButton = document.getElementById("closeChatPanel");
+const inboxDock = document.getElementById("inboxDock");
+const inboxDockBadge = document.getElementById("inboxDockBadge");
 const messages = document.getElementById("messages");
 const chatForm = document.getElementById("chatForm");
 const chatInput = document.getElementById("chatInput");
@@ -81,11 +86,16 @@ let currentSession = null;
 let currentRpcSession = null;
 let draftSegments = [];
 let pendingDraftTarget = null;
+let pendingTextTarget = null;
 let onlineUserIds = new Set();
 let previousOnlineUserIds = new Set();
 let hasPresenceSnapshot = false;
 let socialRefreshTimer = null;
 let socialRefreshInFlight = false;
+let chatPanelOpen = false;
+let unreadMessageCount = 0;
+let latestMessagePreview = "Messages";
+let hasDirectMessages = false;
 
 function setSignedOutDashboardUI() {
   profileName.textContent = "Open the board first, sign in here";
@@ -100,6 +110,11 @@ function setSignedOutDashboardUI() {
   dashboardAuthCard.classList.remove("hidden");
   profileForm.classList.add("hidden");
   pairForm.classList.add("hidden");
+  messages.innerHTML = "";
+  latestMessagePreview = "Messages";
+  unreadMessageCount = 0;
+  hasDirectMessages = false;
+  closeInbox();
   copySyncCodeButton.disabled = true;
   upgradePlanButton.disabled = true;
   clearCanvasButton.disabled = true;
@@ -130,6 +145,37 @@ function setSignedInDashboardUI() {
   copySyncCodeButton.disabled = false;
   upgradePlanButton.disabled = false;
   drawGuard.textContent = "";
+}
+
+function updateInboxUI() {
+  const shouldShowDock = unreadMessageCount > 0 || hasDirectMessages || Boolean(pendingTextTarget);
+  layout.classList.toggle("chat-collapsed", !chatPanelOpen);
+  chatPanel.classList.toggle("hidden", !chatPanelOpen);
+  inboxDock.classList.toggle("hidden", !shouldShowDock);
+  inboxDock.querySelector(".inbox-dock-label").textContent = latestMessagePreview || "Messages";
+  inboxDockBadge.textContent = String(unreadMessageCount);
+  inboxDockBadge.classList.toggle("hidden", unreadMessageCount === 0);
+
+  if (chatPanelOpen) {
+    unreadMessageCount = 0;
+    inboxDockBadge.textContent = "0";
+    inboxDockBadge.classList.add("hidden");
+  }
+}
+
+function openInbox({ focusComposer = false } = {}) {
+  chatPanelOpen = true;
+  updateInboxUI();
+  if (focusComposer) {
+    window.setTimeout(() => {
+      chatInput.focus();
+    }, 60);
+  }
+}
+
+function closeInbox() {
+  chatPanelOpen = false;
+  updateInboxUI();
 }
 
 function getTodayStamp() {
@@ -402,6 +448,15 @@ function addMessage(message) {
 
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
+  hasDirectMessages = true;
+  latestMessagePreview = message.userId === userId
+    ? `You: ${message.text}`
+    : `${message.displayName}: ${message.text}`;
+  if (!chatPanelOpen && message.userId !== userId) {
+    unreadMessageCount += 1;
+    showToast(`${message.displayName} sent a message`, message.text);
+  }
+  updateInboxUI();
 }
 
 function hexToRgba(hex, alpha) {
@@ -732,6 +787,7 @@ function renderFriends() {
       </div>
       <div class="friend-actions">
         <button class="mode-button" data-user-id="${friend.userId}" data-mode="send" ${disabled} ${allowSurprise ? "" : surpriseDisabled}>Send drawing</button>
+        <button class="mode-button" data-user-id="${friend.userId}" data-mode="text" ${disabled}>Text</button>
         <button class="mode-button ${liveLocked ? "pro-lock" : ""}" data-user-id="${friend.userId}" data-mode="live" ${disabled} ${liveLocked ? "data-pro-lock=\"true\"" : ""}>${liveLocked ? "Live mode - Pro" : "Live mode"}</button>
         <button class="mode-button" data-user-id="${friend.userId}" data-mode="draft" ${draftDisabled}>Send draft</button>
       </div>
@@ -758,6 +814,7 @@ function updateSessionUI() {
     drawGuard.textContent = draftSegments.length > 0
       ? "Your draft is saved. Now choose a recipient from the left."
       : "There is no active session. Draw here first, then choose a recipient.";
+    updateInboxUI();
     return;
   }
 
@@ -770,6 +827,7 @@ function updateSessionUI() {
   sessionModeText.textContent = `${modeLabel} - ${modeHint}`;
   presence.textContent = getFriendOnline(currentSession.partner.userId) ? "Selected friend is online" : "Selected friend is offline";
   drawGuard.classList.add("hidden");
+  updateInboxUI();
 }
 
 function applySocialState(state) {
@@ -844,6 +902,7 @@ async function applyQuickAction() {
   await chrome.storage.local.remove(QUICK_ACTION_KEY);
 
   if (action.type === "message" && action.text) {
+    openInbox({ focusComposer: false });
     chatInput.value = action.text;
     addMessage({
       system: true,
@@ -989,6 +1048,9 @@ function connect() {
       clearSurpriseEffect();
       if (!message.restored) {
         messages.innerHTML = "";
+        hasDirectMessages = false;
+        latestMessagePreview = "Messages";
+        unreadMessageCount = 0;
       }
       updateSessionUI();
       addMessage({
@@ -1006,6 +1068,11 @@ function connect() {
       ) {
         replayDraftToCurrentSession();
         pendingDraftTarget = null;
+      }
+
+      if (pendingTextTarget && pendingTextTarget.userId === message.partner.userId) {
+        openInbox({ focusComposer: true });
+        pendingTextTarget = null;
       }
 
       void getSocialState().then((state) => {
@@ -1269,6 +1336,13 @@ friendsList.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.mode === "text") {
+    pendingTextTarget = { userId: button.dataset.userId };
+    openInbox({ focusComposer: false });
+    void handleSessionStart(button.dataset.userId, "send");
+    return;
+  }
+
   const mode = button.dataset.mode === "draft" ? "send" : button.dataset.mode;
   if (button.dataset.mode === "draft") {
     pendingDraftTarget = { userId: button.dataset.userId };
@@ -1322,6 +1396,14 @@ pairForm.addEventListener("submit", async (event) => {
 copySyncCodeButton.addEventListener("click", async () => {
   await navigator.clipboard.writeText(partyCode);
   setStatus("Party code copied", "ok");
+});
+
+closeChatPanelButton.addEventListener("click", () => {
+  closeInbox();
+});
+
+inboxDock.addEventListener("click", () => {
+  openInbox({ focusComposer: true });
 });
 
 window.addEventListener("resize", resizeCanvas);

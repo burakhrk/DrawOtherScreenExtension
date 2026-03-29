@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="dashboard.css" />
   </head>
   <body>
-    <main class="layout">
+    <main id="layout" class="layout chat-collapsed">
       <aside class="friends-panel">
         <div class="panel-head">
           <div>
@@ -119,13 +119,16 @@
         </section>
       </section>
 
-      <aside class="chat-panel">
+      <aside id="chatPanel" class="chat-panel hidden">
         <div class="chat-head">
           <div>
-            <p class="eyebrow">Live chat</p>
+            <p class="eyebrow">Inbox</p>
             <h2>Messages</h2>
           </div>
-          <div id="presence" class="presence">Waiting for a friend</div>
+          <div class="chat-head-actions">
+            <div id="presence" class="presence">Waiting for a friend</div>
+            <button id="closeChatPanel" class="ghost" type="button">Close</button>
+          </div>
         </div>
 
         <div id="messages" class="messages"></div>
@@ -136,6 +139,11 @@
         </form>
       </aside>
     </main>
+
+    <button id="inboxDock" class="inbox-dock hidden" type="button">
+      <span class="inbox-dock-label">Messages</span>
+      <span id="inboxDockBadge" class="inbox-dock-badge hidden">0</span>
+    </button>
 
     <section id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></section>
 
