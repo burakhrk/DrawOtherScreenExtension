@@ -9,6 +9,7 @@ export const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2RvcGZxdmVydGl3Y215b2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzkwNTksImV4cCI6MjA4OTI1NTA1OX0.FoEinT6HMlAn8kBBS5Lxw-DDk9PjwZnrr8bJhW5kVXY";
 
 export const PROFILE_STORAGE_KEY = "sketch-party-local-profile";
+export const GUEST_INSTALL_ID_KEY = "sketch-party-guest-install-id";
 export const QUICK_ACTION_KEY = "sync-sketch-quick-action";
 export const FRIEND_ONLINE_NOTIFICATION_KEY = "sketch-party-friend-online-notifications";
 export const FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY = "sketch-party-friend-online-notifications-enabled";
