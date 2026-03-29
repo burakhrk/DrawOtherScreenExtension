@@ -1,5 +1,5 @@
 import { track } from "../lib/analytics.js";
-import { signInWithGoogle, signOut } from "../lib/auth.js";
+import { onAuthStateChange, signInWithGoogle, signOut } from "../lib/auth.js";
 import {
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
   QUICK_ACTION_KEY,
@@ -43,6 +43,7 @@ const statusText = document.getElementById("statusText");
 const openBoardButton = document.getElementById("openBoardButton");
 
 let currentState = null;
+let suppressNextAuthRefresh = false;
 
 function avatarFromName(name) {
   const safe = (name || "SP").trim();
@@ -99,6 +100,37 @@ function applyEntitlementUI(entitlement) {
   planDetail.textContent = badge.detail;
   upgradeButton.textContent = badge.cta;
   syncEffectEntitlementUI(entitlement);
+}
+
+function applySignedInPendingUI(user) {
+  const displayName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email ||
+    "Sketch Party user";
+
+  currentState = {
+    user: {
+      displayName,
+      email: user?.email || "",
+    },
+    preferences: {
+      extensionEnabled: true,
+      appearOnline: true,
+      allowSurprise: true,
+    },
+    entitlement: null,
+    friends: [],
+    incomingRequests: [],
+  };
+
+  accountTitle.textContent = displayName;
+  accountSubtitle.textContent = user?.email || "Your account is connected. Loading your Sketch Party state...";
+  accountAvatar.textContent = avatarFromName(displayName);
+  accountStatePill.textContent = "Signed in";
+  accountStatePill.style.background = "var(--success)";
+  statusText.textContent = "Finishing setup and loading your friends...";
+  toggleAuthenticatedUI(true);
 }
 
 async function openPaywall() {
@@ -216,9 +248,12 @@ signInButton.addEventListener("click", async () => {
   signInButton.disabled = true;
 
   try {
-    await signInWithGoogle();
+    suppressNextAuthRefresh = true;
+    const session = await signInWithGoogle();
+    applySignedInPendingUI(session?.user);
     await refreshBootstrapState();
   } catch (error) {
+    suppressNextAuthRefresh = false;
     console.error(error);
     statusText.textContent = error.message || "Google sign-in failed.";
   } finally {
@@ -330,6 +365,22 @@ allowSurpriseInput.addEventListener("change", () => {
 
 friendOnlineNotificationsInput.addEventListener("change", () => {
   void updateLocalNotificationPreference();
+});
+
+onAuthStateChange((event, session) => {
+  if (!session?.user) {
+    return;
+  }
+
+  if (suppressNextAuthRefresh) {
+    suppressNextAuthRefresh = false;
+    return;
+  }
+
+  if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
+    applySignedInPendingUI(session.user);
+    void refreshBootstrapState();
+  }
 });
 
 void refreshBootstrapState();
