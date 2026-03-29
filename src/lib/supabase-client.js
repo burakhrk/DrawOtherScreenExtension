@@ -2,10 +2,10 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./constants.js";
 import { chromeStorageAdapter } from "./chrome-storage.js";
 
 const supabaseGlobal =
-  globalThis.supabase ||
-  globalThis.window?.supabase ||
-  globalThis.self?.supabase ||
-  (typeof supabase !== "undefined" ? supabase : null);
+  globalThis["supabase"] ||
+  globalThis.window?.["supabase"] ||
+  globalThis.self?.["supabase"] ||
+  null;
 
 const createClient = supabaseGlobal?.createClient;
 
