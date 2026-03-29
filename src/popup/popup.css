@@ -201,7 +201,7 @@ h2 {
   background:
     var(--avatar-image),
     radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.96), rgba(255, 250, 242, 0.92) 42%, rgba(255, 235, 208, 0.94) 100%);
-  background-size: cover, cover;
+  background-size: 114%, cover;
   background-position: center, center;
   background-repeat: no-repeat, no-repeat;
   box-shadow:

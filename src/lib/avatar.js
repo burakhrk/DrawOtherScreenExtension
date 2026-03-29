@@ -25,7 +25,7 @@ export function getSketchPartyAvatarDataUrl(seedInput, label = "Sketch Party use
   const seed = hashSeed(seedInput);
   const background = pick(seed, ["#FFF2BF", "#FFD7CF", "#DCE8FF", "#E1F6E7", "#F3E0FF", "#FFEBD2"], 2);
   const accent = pick(seed, ["#EF6A48", "#4C74FF", "#26A95D", "#7A4DFF", "#FF5B7C", "#FF9A2F"], 6);
-  const skin = pick(seed, ["#FFD6BA", "#F4C6A3", "#E9B18A", "#D69A74"], 10);
+  const skin = pick(seed, ["#FBE8D8", "#F7DCC7", "#EFCAB0", "#E4BA97"], 10);
   const hair = pick(seed, ["#5E4637", "#7A5A45", "#B85C2B", "#E0B14F", "#8A6550"], 14);
   const faceShape = (seed >> 3) % 3;
   const eyeMode = (seed >> 5) % 2;
@@ -34,16 +34,16 @@ export function getSketchPartyAvatarDataUrl(seedInput, label = "Sketch Party use
   const hasConfetti = (seed >> 11) % 2 === 0;
 
   const face = faceShape === 0
-    ? `<ellipse cx="46" cy="50" rx="22" ry="24" fill="${skin}"/>`
+    ? `<ellipse cx="46" cy="49" rx="24" ry="26" fill="${skin}"/>`
     : faceShape === 1
-      ? `<rect x="25" y="28" width="42" height="46" rx="20" fill="${skin}"/>`
-      : `<path d="M46 27c13 0 23 10 23 22 0 16-9 27-23 27S23 65 23 49c0-12 10-22 23-22Z" fill="${skin}"/>`;
+      ? `<rect x="23" y="25" width="46" height="50" rx="22" fill="${skin}"/>`
+      : `<path d="M46 24c14 0 25 11 25 24 0 17-10 29-25 29S21 65 21 48c0-13 11-24 25-24Z" fill="${skin}"/>`;
 
   const hairShape = faceShape === 0
-    ? `<path d="M27 36c4-11 11-16 19-16 10 0 17 6 19 16-6-4-12-5-19-5s-13 1-19 5Z" fill="${hair}"/>`
+    ? `<path d="M24 34c4-11 12-17 22-17 11 0 19 6 22 17-7-4-14-6-22-6s-15 2-22 6Z" fill="${hair}"/>`
     : faceShape === 1
-      ? `<path d="M27 35c5-10 11-15 19-15 9 0 16 5 19 15-6-3-12-4-19-4s-13 1-19 4Z" fill="${hair}"/>`
-      : `<path d="M26 36c4-10 12-16 20-16 10 0 17 6 20 16-7-3-13-5-20-5s-13 2-20 5Z" fill="${hair}"/>`;
+      ? `<path d="M24 33c5-10 12-16 22-16 10 0 18 6 22 16-7-3-14-5-22-5s-15 2-22 5Z" fill="${hair}"/>`
+      : `<path d="M23 34c4-10 13-17 23-17 11 0 19 7 23 17-8-4-15-6-23-6s-15 2-23 6Z" fill="${hair}"/>`;
 
   const eyes = eyeMode === 0
     ? `
@@ -97,7 +97,7 @@ export function getSketchPartyAvatarDataUrl(seedInput, label = "Sketch Party use
       ${confetti}
       <circle cx="72" cy="18" r="9" fill="${accent}" opacity="0.16"/>
       <circle cx="18" cy="74" r="10" fill="${accent}" opacity="0.1"/>
-      <ellipse cx="46" cy="61" rx="26" ry="19" fill="#FFF8EE"/>
+      <ellipse cx="46" cy="63" rx="29" ry="20" fill="#FFF8EE"/>
       ${hairShape}
       ${face}
       ${eyes}
