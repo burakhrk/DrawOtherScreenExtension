@@ -23,6 +23,7 @@ const QUICK_EFFECTS = {
   heartburst: { effect: "heartburst", color: "#ff5b7c", size: 6, label: "Heart burst - Pro", pro: true },
   stickman: { effect: "stickman", color: "#232018", size: 6, label: "Stickman - Pro", pro: true },
   stickerslap: { effect: "stickerslap", color: "#ffd05b", size: 7, label: "Sticker slap - Pro", pro: true },
+  mexicanwave: { effect: "mexicanwave", color: "#4d83ff", size: 5, label: "Text wave - Pro", pro: true },
 };
 
 const form = document.getElementById("session-form");

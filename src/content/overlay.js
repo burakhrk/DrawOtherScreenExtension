@@ -1,6 +1,7 @@
 let overlayCanvas;
 let overlayContext;
 let fadeTimer;
+let activeMexicanWaveCleanup = null;
 
 function ensureOverlay() {
   if (overlayCanvas) {
@@ -49,6 +50,209 @@ function pagePoint(segmentPoint) {
     x: (segmentPoint.x / 1000) * window.innerWidth,
     y: (segmentPoint.y / 1000) * window.innerHeight
   };
+}
+
+function clearMexicanWaveEffect() {
+  if (activeMexicanWaveCleanup) {
+    activeMexicanWaveCleanup();
+    activeMexicanWaveCleanup = null;
+  }
+}
+
+function canAnimateTextNode(node) {
+  if (!node || !node.parentElement) {
+    return false;
+  }
+
+  const parent = node.parentElement;
+  if (
+    parent.closest("script, style, noscript, textarea, input, select, option, button, canvas, svg, code, pre") ||
+    parent.closest("[contenteditable='true']") ||
+    parent.closest("[data-sketch-party-wave-root='true']")
+  ) {
+    return false;
+  }
+
+  const text = node.textContent?.replace(/\s+/g, " ").trim() || "";
+  if (text.length < 4) {
+    return false;
+  }
+
+  const style = window.getComputedStyle(parent);
+  if (style.visibility === "hidden" || style.display === "none" || Number(style.opacity) < 0.05) {
+    return false;
+  }
+
+  return true;
+}
+
+function getVisibleTextTargets(limit = 16) {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const candidates = [];
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (!canAnimateTextNode(node)) {
+      continue;
+    }
+
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const rects = Array.from(range.getClientRects());
+    range.detach?.();
+
+    if (rects.length === 0) {
+      continue;
+    }
+
+    let visibleArea = 0;
+    let maxWidth = 0;
+    let maxHeight = 0;
+    let firstTop = Number.POSITIVE_INFINITY;
+
+    for (const rect of rects) {
+      const width = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
+      const height = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+      if (width <= 0 || height <= 0) {
+        continue;
+      }
+
+      visibleArea += width * height;
+      maxWidth = Math.max(maxWidth, width);
+      maxHeight = Math.max(maxHeight, height);
+      firstTop = Math.min(firstTop, rect.top);
+    }
+
+    if (visibleArea <= 0 || maxWidth < 28 || maxHeight < 10) {
+      continue;
+    }
+
+    candidates.push({
+      node,
+      text: node.textContent,
+      score: visibleArea,
+      top: firstTop,
+    });
+  }
+
+  return candidates
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+
+      return left.top - right.top;
+    })
+    .slice(0, limit);
+}
+
+function wrapTextNodeLetters(node, text) {
+  const wrapper = document.createElement("span");
+  wrapper.dataset.sketchPartyWaveRoot = "true";
+  wrapper.style.display = "inline";
+  wrapper.style.whiteSpace = "pre-wrap";
+
+  const letters = [];
+  const fragment = document.createDocumentFragment();
+
+  for (const character of text) {
+    const letter = document.createElement("span");
+    letter.textContent = character === " " ? "\u00A0" : character;
+    letter.style.display = "inline-block";
+    letter.style.willChange = "transform";
+    letter.style.transform = "translateY(0px)";
+    letter.style.transition = "transform 0s linear";
+    letter.style.textShadow = "0 0 0 rgba(255,255,255,0)";
+    fragment.appendChild(letter);
+    letters.push(letter);
+  }
+
+  wrapper.appendChild(fragment);
+  node.replaceWith(wrapper);
+  return { wrapper, letters };
+}
+
+function runMexicanWaveEffect({
+  durationMs = 2400,
+  amplitude = 4.5,
+  waveWidth = 5.5,
+  speed = 0.016,
+} = {}) {
+  clearMexicanWaveEffect();
+
+  const targets = getVisibleTextTargets();
+  if (targets.length === 0) {
+    return;
+  }
+
+  const wrappedTargets = [];
+
+  for (const [index, target] of targets.entries()) {
+    const { wrapper, letters } = wrapTextNodeLetters(target.node, target.text);
+    wrappedTargets.push({
+      originalText: target.text,
+      wrapper,
+      letters,
+      phaseOffset: (index * 1.7) + ((index % 3) * 0.55),
+      localAmplitude: 2 + Math.min(4, amplitude + ((index % 4) * 0.2)),
+    });
+  }
+
+  let rafId = 0;
+  let disposed = false;
+  const startedAt = performance.now();
+
+  const restore = () => {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+    }
+
+    for (const target of wrappedTargets) {
+      target.wrapper.replaceWith(document.createTextNode(target.originalText));
+    }
+
+    if (activeMexicanWaveCleanup === restore) {
+      activeMexicanWaveCleanup = null;
+    }
+  };
+
+  activeMexicanWaveCleanup = restore;
+
+  const animate = (now) => {
+    const elapsed = now - startedAt;
+    if (elapsed >= durationMs) {
+      restore();
+      return;
+    }
+
+    for (const target of wrappedTargets) {
+      const cycleLength = target.letters.length + (waveWidth * 2);
+      const head = (((elapsed * speed) + target.phaseOffset) % cycleLength) - waveWidth;
+
+      for (let index = 0; index < target.letters.length; index += 1) {
+        const distance = Math.min(
+          Math.abs(index - head),
+          Math.abs(index - (head - cycleLength)),
+          Math.abs(index - (head + cycleLength)),
+        );
+        const influence = Math.max(0, 1 - (distance / waveWidth));
+        const offsetY = -target.localAmplitude * Math.sin(influence * Math.PI * 0.5);
+        const glow = influence * 0.12;
+        const letter = target.letters[index];
+        letter.style.transform = `translateY(${offsetY.toFixed(2)}px)`;
+        letter.style.textShadow = glow > 0.01 ? `0 0 ${glow.toFixed(2)}rem rgba(255,255,255,0.18)` : "0 0 0 rgba(255,255,255,0)";
+      }
+    }
+
+    rafId = requestAnimationFrame(animate);
+  };
+
+  rafId = requestAnimationFrame(animate);
 }
 
 function drawCrack(segment) {
@@ -391,7 +595,10 @@ function drawEffect(segment) {
   ensureOverlay();
   overlayCanvas.style.opacity = "1";
 
-  if (segment.effect === "crack") {
+  if (segment.effect === "mexicanwave") {
+    runMexicanWaveEffect();
+    return;
+  } else if (segment.effect === "crack") {
     drawCrack(segment);
   } else if (segment.effect === "scribble") {
     drawScribble(segment);
@@ -424,6 +631,7 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 
   if (message?.type === "CLEAR_SURPRISE_EFFECT") {
+    clearMexicanWaveEffect();
     ensureOverlay();
     overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     overlayCanvas.style.opacity = "1";
