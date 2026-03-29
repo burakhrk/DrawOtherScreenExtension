@@ -11,7 +11,8 @@
     "check:popup": "node --check src/popup/popup.js",
     "check:dashboard": "node --check src/dashboard/dashboard.js",
     "check:extension": "node --check src/background/background.js && node --check src/content/overlay.js && node --check src/lib/auth.js && node --check src/lib/sketch-party-social-client.js",
-    "test:relay-smoke": "node scripts/relay-smoke-test.mjs"
+    "test:relay-smoke": "node scripts/relay-smoke-test.mjs",
+    "test:relay-load": "node scripts/relay-load-test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.0",
