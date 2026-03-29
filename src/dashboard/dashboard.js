@@ -68,6 +68,7 @@ const chatInput = document.getElementById("chatInput");
 const effectPicker = document.getElementById("effectPicker");
 const colorPicker = document.getElementById("colorPicker");
 const brushSize = document.getElementById("brushSize");
+const brushValue = document.getElementById("brushValue");
 const openOnboardingButton = document.getElementById("openOnboardingButton");
 const onboardingOverlay = document.getElementById("onboardingOverlay");
 const onboardingTitle = document.getElementById("onboardingTitle");
@@ -314,6 +315,14 @@ function openInbox({ focusComposer = false } = {}) {
       chatInput.focus();
     }, 60);
   }
+}
+
+function updateBrushValue() {
+  if (!brushValue) {
+    return;
+  }
+
+  brushValue.textContent = `${brushSize.value}px`;
 }
 
 function closeInbox() {
@@ -1689,6 +1698,7 @@ effectPicker.addEventListener("change", () => {
     ensureAllowedEffectSelection();
   }
 });
+brushSize.addEventListener("input", updateBrushValue);
 upgradePlanButton.addEventListener("click", () => {
   void openPaywall("membership-card");
 });
@@ -1750,6 +1760,7 @@ async function initialize() {
 
   resizeCanvas();
   updateSessionUI();
+  updateBrushValue();
   applyRuntimePreferences(await getLocalPreferences(), { updateStatus: false });
   setStatus("Loading account...");
   setGlobalStatus("Connecting");

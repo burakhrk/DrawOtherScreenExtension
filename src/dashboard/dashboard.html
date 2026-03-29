@@ -96,37 +96,48 @@
 
           <div class="toolbar">
             <button id="openOnboardingButton" class="ghost icon-button" type="button" aria-label="Open tutorial">?</button>
-            <label class="tool tool-stack effect-tool">
-              <span>Effect</span>
-              <div class="effect-select-shell">
-                <span class="effect-select-icon" aria-hidden="true">✦</span>
-                <select id="effectPicker">
-                  <option value="draw">Freehand</option>
-                  <option value="crack">Broken screen</option>
-                  <option value="scribble">Scribble</option>
-                  <option value="drip">Paint drip</option>
-                  <option value="zap" data-pro="true">Lightning - Pro</option>
-                  <option value="heartburst" data-pro="true">Heart burst - Pro</option>
-                  <option value="bullet" data-pro="true">Bullet impact - Pro</option>
-                  <option value="stickman" data-pro="true">Stickman - Pro</option>
-                </select>
-                <span class="effect-select-caret" aria-hidden="true">▾</span>
-              </div>
-            </label>
 
-            <label class="tool">
-              <span>Color</span>
-              <input id="colorPicker" type="color" value="#232018" />
-            </label>
+            <div class="toolbar-cluster toolbar-tools">
+              <label class="tool tool-stack effect-tool">
+                <span>Effect</span>
+                <div class="effect-select-shell">
+                  <span class="effect-select-icon" aria-hidden="true">✦</span>
+                  <select id="effectPicker">
+                    <option value="draw">Freehand</option>
+                    <option value="crack">Broken screen</option>
+                    <option value="scribble">Scribble</option>
+                    <option value="drip">Paint drip</option>
+                    <option value="zap" data-pro="true">Lightning - Pro</option>
+                    <option value="heartburst" data-pro="true">Heart burst - Pro</option>
+                    <option value="bullet" data-pro="true">Bullet impact - Pro</option>
+                    <option value="stickman" data-pro="true">Stickman - Pro</option>
+                  </select>
+                  <span class="effect-select-caret" aria-hidden="true">▾</span>
+                </div>
+              </label>
 
-            <label class="tool">
-              <span>Brush</span>
-              <input id="brushSize" type="range" min="1" max="24" value="4" />
-            </label>
+              <label class="tool color-tool">
+                <span>Color</span>
+                <div class="color-swatch-shell">
+                  <input id="colorPicker" type="color" value="#232018" />
+                  <span class="color-swatch-label">Ink</span>
+                </div>
+              </label>
 
-            <button id="clearCanvas" class="ghost">Clear</button>
-            <button id="sendDraft" class="ghost">Send draft</button>
-            <button id="leaveSession" class="ghost">End session</button>
+              <label class="tool brush-tool">
+                <span>Brush</span>
+                <div class="brush-shell">
+                  <input id="brushSize" type="range" min="1" max="24" value="4" />
+                  <span id="brushValue" class="brush-value">4px</span>
+                </div>
+              </label>
+            </div>
+
+            <div class="toolbar-cluster toolbar-actions">
+              <button id="clearCanvas" class="ghost toolbar-action" type="button">Clear</button>
+              <button id="sendDraft" class="ghost toolbar-action accent-action" type="button">Send draft</button>
+              <button id="leaveSession" class="ghost toolbar-action" type="button">End session</button>
+            </div>
           </div>
         </header>
 
@@ -194,6 +205,3 @@
     <script src="dashboard.js" type="module"></script>
   </body>
 </html>
-
-
-
