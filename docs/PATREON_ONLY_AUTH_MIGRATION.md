@@ -43,6 +43,13 @@ Introduce a Patreon auth broker:
 4. Broker resolves or creates the app user in our data layer
 5. Broker issues the app session that the extension will use afterward
 
+Status now:
+
+- relay OAuth start is implemented
+- relay callback exchange is implemented
+- Patreon identity and membership fetch are implemented
+- app-session minting is still pending
+
 ## Data we need from Patreon
 
 - Patreon OAuth client ID

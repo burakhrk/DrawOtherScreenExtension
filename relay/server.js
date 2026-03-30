@@ -1,4 +1,5 @@
 const http = require("http");
+const crypto = require("crypto");
 const { WebSocketServer } = require("ws");
 
 const port = Number(process.env.PORT || 3000);
@@ -14,6 +15,8 @@ const patreonClientId = process.env.PATREON_CLIENT_ID || "";
 const patreonClientSecret = process.env.PATREON_CLIENT_SECRET || "";
 const patreonCampaignId = process.env.PATREON_CAMPAIGN_ID || "";
 const patreonRedirectUri = process.env.PATREON_REDIRECT_URI || "";
+const patreonScope = process.env.PATREON_SCOPE || "identity identity.memberships identity[email]";
+const patreonStateTtlMs = Number(process.env.PATREON_STATE_TTL_MS || 10 * 60 * 1000);
 
 const sessions = new Map();
 const socketsByUserId = new Map();
@@ -35,6 +38,7 @@ const metrics = {
 };
 const serverStartedAt = Date.now();
 const metricsSamples = [];
+const patreonAuthStates = new Map();
 
 const partyCodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -585,6 +589,153 @@ function sendPreferenceNudge(targetUserId, initiatorDisplayName, reason) {
   });
 }
 
+function encodePatreonBrokerState(payload) {
+  const stateId = crypto.randomUUID();
+  patreonAuthStates.set(stateId, {
+    ...payload,
+    createdAt: Date.now(),
+  });
+  return stateId;
+}
+
+function consumePatreonBrokerState(stateId) {
+  if (!stateId) {
+    return null;
+  }
+
+  const entry = patreonAuthStates.get(stateId) || null;
+  patreonAuthStates.delete(stateId);
+
+  if (!entry) {
+    return null;
+  }
+
+  if ((Date.now() - entry.createdAt) > patreonStateTtlMs) {
+    return null;
+  }
+
+  return entry;
+}
+
+function prunePatreonBrokerStates() {
+  const now = Date.now();
+  for (const [stateId, entry] of patreonAuthStates.entries()) {
+    if ((now - entry.createdAt) > patreonStateTtlMs) {
+      patreonAuthStates.delete(stateId);
+    }
+  }
+}
+
+function buildPatreonAuthorizeUrl(requestStateId) {
+  const authorizeUrl = new URL("https://www.patreon.com/oauth2/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", patreonClientId);
+  authorizeUrl.searchParams.set("redirect_uri", patreonRedirectUri);
+  authorizeUrl.searchParams.set("scope", patreonScope);
+  authorizeUrl.searchParams.set("state", requestStateId);
+  return authorizeUrl.toString();
+}
+
+function extractPatreonIdentity(payload) {
+  const data = payload?.data || {};
+  const included = Array.isArray(payload?.included) ? payload.included : [];
+  const attributes = data.attributes || {};
+  const userId = data.id ? `patreon:${data.id}` : "";
+  const displayName = attributes.full_name || attributes.vanity || "";
+  const email = attributes.email || "";
+
+  const membership = included.find((item) => item?.type === "member") || null;
+  const membershipAttributes = membership?.attributes || {};
+  const patronStatus = membershipAttributes.patron_status || membershipAttributes.last_charge_status || "unknown";
+  const entitledTier = included.find((item) => item?.type === "tier") || null;
+  const tierTitle = entitledTier?.attributes?.title || "";
+  const isPro = Boolean(entitledTier);
+
+  return {
+    userId,
+    displayName,
+    email,
+    membershipStatus: patronStatus,
+    tierTitle,
+    isPro,
+  };
+}
+
+async function exchangePatreonCodeForTokens(code) {
+  const response = await fetch("https://www.patreon.com/api/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      code,
+      grant_type: "authorization_code",
+      client_id: patreonClientId,
+      client_secret: patreonClientSecret,
+      redirect_uri: patreonRedirectUri,
+    }).toString(),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error_description || payload.error || "Patreon token exchange failed.");
+  }
+
+  return payload;
+}
+
+async function fetchPatreonIdentity(accessToken) {
+  const identityUrl = new URL("https://www.patreon.com/api/oauth2/v2/identity");
+  identityUrl.searchParams.set("include", "memberships.currently_entitled_tiers");
+  identityUrl.searchParams.set("fields[user]", "email,full_name,image_url,thumb_url,vanity");
+  identityUrl.searchParams.set("fields[member]", "patron_status,last_charge_status,last_charge_date");
+  identityUrl.searchParams.set("fields[tier]", "title,amount_cents");
+
+  const response = await fetch(identityUrl, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.errors?.[0]?.detail || "Patreon identity lookup failed.");
+  }
+
+  return extractPatreonIdentity(payload);
+}
+
+function sendJson(response, statusCode, body) {
+  const raw = JSON.stringify(body);
+  response.writeHead(statusCode, {
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(raw),
+  });
+  response.end(raw);
+}
+
+function sendPatreonBridgeResult(response, statusCode, payload, extensionRedirectUri = "") {
+  if (extensionRedirectUri) {
+    const redirect = new URL(extensionRedirectUri);
+    for (const [key, value] of Object.entries(payload)) {
+      if (value === undefined || value === null) {
+        continue;
+      }
+      redirect.searchParams.set(key, String(value));
+    }
+
+    response.writeHead(302, {
+      Location: redirect.toString(),
+      "Cache-Control": "no-store",
+    });
+    response.end();
+    return;
+  }
+
+  sendJson(response, statusCode, payload);
+}
+
 function getPatreonBrokerStatus() {
   const missing = [];
 
@@ -610,12 +761,16 @@ function getPatreonBrokerStatus() {
     missing,
     redirectUri: patreonRedirectUri || null,
     campaignLinked: Boolean(patreonCampaignId),
-    authBridgeImplemented: false,
-    note: "Patreon-only auth is staged. This endpoint only reports broker readiness for now.",
+    oauthExchangeImplemented: true,
+    appSessionMinting: false,
+    note: "Patreon OAuth exchange is implemented, but internal app-session minting is still pending.",
   };
 }
 
 const httpServer = http.createServer((request, response) => {
+  const requestUrl = new URL(request.url, `http://${request.headers.host}`);
+  prunePatreonBrokerStates();
+
   if (request.url === "/health") {
     const body = JSON.stringify({
       ok: true,
@@ -655,40 +810,128 @@ const httpServer = http.createServer((request, response) => {
   }
 
   if (request.url === "/auth/patreon/status") {
-    const body = JSON.stringify({
+    const body = {
       ok: true,
       appId,
       ...getPatreonBrokerStatus(),
-    });
+    };
 
-    response.writeHead(200, {
-      "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(body),
-    });
-    response.end(body);
+    sendJson(response, 200, body);
     return;
   }
 
-  if (request.url === "/auth/patreon/start" || request.url?.startsWith("/auth/patreon/callback")) {
+  if (requestUrl.pathname === "/auth/patreon/start") {
     const status = getPatreonBrokerStatus();
-    const body = JSON.stringify({
-      ok: false,
-      ...status,
-      message: status.configured
-        ? "Patreon broker scaffolding is present, but the callback exchange and app-session minting are not implemented yet."
-        : "Patreon broker is not configured yet.",
+
+    if (!status.configured) {
+      sendJson(response, 503, {
+        ok: false,
+        ...status,
+        message: "Patreon broker is not configured yet.",
+      });
+      return;
+    }
+
+    const extensionRedirectUri = String(requestUrl.searchParams.get("redirect_uri") || "").trim();
+    const source = String(requestUrl.searchParams.get("source") || "extension").trim();
+    const appIdParam = String(requestUrl.searchParams.get("app_id") || appId).trim();
+
+    const stateId = encodePatreonBrokerState({
+      extensionRedirectUri,
+      source,
+      appId: appIdParam,
     });
 
-    response.writeHead(status.configured ? 501 : 503, {
-      "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(body),
+    response.writeHead(302, {
+      Location: buildPatreonAuthorizeUrl(stateId),
+      "Cache-Control": "no-store",
     });
-    response.end(body);
+    response.end();
+    return;
+  }
+
+  if (requestUrl.pathname === "/auth/patreon/callback") {
+    const stateId = requestUrl.searchParams.get("state") || "";
+    const state = consumePatreonBrokerState(stateId);
+    const extensionRedirectUri = state?.extensionRedirectUri || "";
+    const callbackError = requestUrl.searchParams.get("error_description")
+      || requestUrl.searchParams.get("error")
+      || "";
+
+    if (callbackError) {
+      sendPatreonBridgeResult(response, 400, {
+        ok: false,
+        provider: "patreon",
+        status: "error",
+        error: callbackError,
+      }, extensionRedirectUri);
+      return;
+    }
+
+    if (!state) {
+      sendPatreonBridgeResult(response, 400, {
+        ok: false,
+        provider: "patreon",
+        status: "error",
+        error: "Patreon auth state is missing or expired.",
+      }, extensionRedirectUri);
+      return;
+    }
+
+    const code = requestUrl.searchParams.get("code") || "";
+    if (!code) {
+      sendPatreonBridgeResult(response, 400, {
+        ok: false,
+        provider: "patreon",
+        status: "error",
+        error: "Patreon callback did not include an authorization code.",
+      }, extensionRedirectUri);
+      return;
+    }
+
+    Promise.resolve()
+      .then(async () => {
+        const tokens = await exchangePatreonCodeForTokens(code);
+        const identity = await fetchPatreonIdentity(tokens.access_token);
+
+        writeLog("info", "patreon_identity_linked", {
+          patreonUserId: identity.userId,
+          membershipStatus: identity.membershipStatus,
+          tierTitle: identity.tierTitle || null,
+          source: state.source,
+          appId: state.appId,
+        });
+
+        sendPatreonBridgeResult(response, 200, {
+          ok: true,
+          provider: "patreon",
+          status: "identity-only",
+          auth_ready: false,
+          message: "Patreon identity received. Internal Sketch Party app-session minting is still pending.",
+          patreon_user_id: identity.userId,
+          display_name: identity.displayName,
+          email: identity.email,
+          membership_status: identity.membershipStatus,
+          tier_title: identity.tierTitle,
+          is_pro: identity.isPro,
+        }, extensionRedirectUri);
+      })
+      .catch((error) => {
+        writeLog("error", "patreon_callback_failed", {
+          message: error?.message || "unknown_error",
+        });
+        sendPatreonBridgeResult(response, 500, {
+          ok: false,
+          provider: "patreon",
+          status: "error",
+          error: error?.message || "Patreon callback processing failed.",
+        }, extensionRedirectUri);
+      });
+
     return;
   }
 
   if (request.url?.startsWith("/resolve-user")) {
-    const requestUrl = new URL(request.url, `http://${request.headers.host}`);
     const identifier = String(requestUrl.searchParams.get("identifier") || "").trim();
     const normalizedIdentifier = identifier.toUpperCase();
     let matches = [];

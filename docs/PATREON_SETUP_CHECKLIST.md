@@ -38,8 +38,9 @@ This returns:
 At this stage:
 
 - config readiness is supported
-- the actual Patreon OAuth callback exchange is not implemented yet
-- the app-session minting step is not implemented yet
+- Patreon OAuth start and callback exchange are implemented in the relay
+- Patreon identity and membership lookup are implemented in the relay
+- the internal app-session minting step is still not implemented yet
 
 ## What happens after credentials are added
 
@@ -50,6 +51,20 @@ Next implementation step:
 3. fetch Patreon identity + memberships
 4. resolve or create the internal Sketch Party user
 5. mint the app session used by the extension afterward
+
+## Broker routes now available
+
+- `GET /auth/patreon/status`
+- `GET /auth/patreon/start`
+- `GET /auth/patreon/callback`
+
+`/auth/patreon/start` expects:
+
+- `redirect_uri=<chrome.identity.getRedirectURL(...)>`
+- `app_id=sketch-party`
+- `source=chrome-extension`
+
+The callback currently returns Patreon identity data to the extension and explicitly marks `auth_ready=false` until app-session minting is finished.
 
 ## Notes
 
