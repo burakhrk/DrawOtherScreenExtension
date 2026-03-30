@@ -27,6 +27,8 @@ Sketch Party is a Chrome extension plus a stateless WebSocket relay for social d
 - `docs/ANALYTICS_ROADMAP.md`: analytics expansion notes
 - `docs/RELAY_METRICS_GUIDE.md`: how to read hosted relay metrics
 - `docs/PRODUCTION_LOAD_CHECKLIST.md`: rollout and hosted load test checklist
+- `docs/PATREON_ONLY_AUTH_MIGRATION.md`: staged plan for moving from the current auth path to Patreon-only identity
+- `docs/PATREON_SETUP_CHECKLIST.md`: the Patreon app values and broker configuration needed before the switch
 
 ## Local Setup
 
@@ -58,7 +60,8 @@ This project is designed to be deployed to an internet-accessible Node host.
 1. `relay/server.js` serves both HTTP and WebSocket on one port.
 2. `GET /health` is available for health checks.
 3. `GET /metrics` is available for runtime counters and memory snapshots.
-4. In the extension, entering `https://your-domain.com` is enough; the client converts it to `wss://` automatically.
+4. `GET /auth/patreon/status` reports whether the Patreon broker env vars are present yet.
+5. In the extension, entering `https://your-domain.com` is enough; the client converts it to `wss://` automatically.
 
 Example deployment options:
 

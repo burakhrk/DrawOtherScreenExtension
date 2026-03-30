@@ -10,6 +10,10 @@ const supabaseUrl = process.env.SUPABASE_URL || "https://lpgdopfqvertiwcmyokh.su
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2RvcGZxdmVydGl3Y215b2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzkwNTksImV4cCI6MjA4OTI1NTA1OX0.FoEinT6HMlAn8kBBS5Lxw-DDk9PjwZnrr8bJhW5kVXY";
 const logLevel = process.env.LOG_LEVEL || "info";
 const metricsSampleWindowMs = Number(process.env.METRICS_SAMPLE_WINDOW_MS || 60_000);
+const patreonClientId = process.env.PATREON_CLIENT_ID || "";
+const patreonClientSecret = process.env.PATREON_CLIENT_SECRET || "";
+const patreonCampaignId = process.env.PATREON_CAMPAIGN_ID || "";
+const patreonRedirectUri = process.env.PATREON_REDIRECT_URI || "";
 
 const sessions = new Map();
 const socketsByUserId = new Map();
@@ -581,6 +585,36 @@ function sendPreferenceNudge(targetUserId, initiatorDisplayName, reason) {
   });
 }
 
+function getPatreonBrokerStatus() {
+  const missing = [];
+
+  if (!patreonClientId) {
+    missing.push("PATREON_CLIENT_ID");
+  }
+
+  if (!patreonClientSecret) {
+    missing.push("PATREON_CLIENT_SECRET");
+  }
+
+  if (!patreonCampaignId) {
+    missing.push("PATREON_CAMPAIGN_ID");
+  }
+
+  if (!patreonRedirectUri) {
+    missing.push("PATREON_REDIRECT_URI");
+  }
+
+  return {
+    provider: "patreon",
+    configured: missing.length === 0,
+    missing,
+    redirectUri: patreonRedirectUri || null,
+    campaignLinked: Boolean(patreonCampaignId),
+    authBridgeImplemented: false,
+    note: "Patreon-only auth is staged. This endpoint only reports broker readiness for now.",
+  };
+}
+
 const httpServer = http.createServer((request, response) => {
   if (request.url === "/health") {
     const body = JSON.stringify({
@@ -613,6 +647,39 @@ const httpServer = http.createServer((request, response) => {
     });
 
     response.writeHead(200, {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(body),
+    });
+    response.end(body);
+    return;
+  }
+
+  if (request.url === "/auth/patreon/status") {
+    const body = JSON.stringify({
+      ok: true,
+      appId,
+      ...getPatreonBrokerStatus(),
+    });
+
+    response.writeHead(200, {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(body),
+    });
+    response.end(body);
+    return;
+  }
+
+  if (request.url === "/auth/patreon/start" || request.url?.startsWith("/auth/patreon/callback")) {
+    const status = getPatreonBrokerStatus();
+    const body = JSON.stringify({
+      ok: false,
+      ...status,
+      message: status.configured
+        ? "Patreon broker scaffolding is present, but the callback exchange and app-session minting are not implemented yet."
+        : "Patreon broker is not configured yet.",
+    });
+
+    response.writeHead(status.configured ? 501 : 503, {
       "Content-Type": "application/json",
       "Content-Length": Buffer.byteLength(body),
     });
@@ -675,6 +742,7 @@ const httpServer = http.createServer((request, response) => {
     name: "Sketch Party Relay",
     websocket: true,
     health: "/health",
+    patreonStatus: "/auth/patreon/status",
     appId,
   });
 
