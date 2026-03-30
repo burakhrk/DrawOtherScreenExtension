@@ -1,6 +1,12 @@
 import { track } from "../lib/analytics.js";
 import { getSketchPartyAvatarDataUrl } from "../lib/avatar.js";
-import { getCurrentUser, onAuthStateChange, signInWithGoogle, signOut } from "../lib/auth.js";
+import {
+  AUTH_PROVIDER,
+  beginPrimarySignIn,
+  getAuthenticatedUser,
+  onPrimaryAuthStateChange,
+  signOut,
+} from "../lib/auth.js";
 import { createPartyCode } from "../lib/party-code.js";
 import {
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
@@ -230,8 +236,8 @@ async function applyBootstrapState(state) {
   const localPreferences = await getLocalPreferences();
 
   if (!state) {
-    accountTitle.textContent = "Sketch Party";
-    accountSubtitle.textContent = "";
+    accountTitle.textContent = AUTH_PROVIDER.signedOutTitle;
+    accountSubtitle.textContent = AUTH_PROVIDER.signedOutSubtitle;
     applyAvatar("popup-signed-out", "Sketch Party");
     accountStatePill.textContent = "Not ready";
     accountStatePill.style.background = "#f3e5d5";
@@ -278,7 +284,7 @@ async function applyBootstrapState(state) {
 
 async function refreshBootstrapState() {
   try {
-    const user = await getCurrentUser();
+    const user = await getAuthenticatedUser();
     if (!user) {
       await applyBootstrapState(null);
       return;
@@ -289,7 +295,7 @@ async function refreshBootstrapState() {
   } catch (error) {
     console.error(error);
     statusText.textContent = error.message || "Account state could not be loaded.";
-    const user = await getCurrentUser().catch(() => null);
+    const user = await getAuthenticatedUser().catch(() => null);
     if (!user) {
       await applyBootstrapState(null);
       return;
@@ -329,12 +335,12 @@ async function updateLocalNotificationPreference() {
 }
 
 signInButton.addEventListener("click", async () => {
-  statusText.textContent = "Opening Google sign-in...";
+  statusText.textContent = AUTH_PROVIDER.signInStatusLabel;
   signInButton.disabled = true;
 
   try {
     suppressNextAuthRefresh = true;
-    const session = await signInWithGoogle();
+    const session = await beginPrimarySignIn();
     applySignedInPendingUI(session?.user);
     await refreshBootstrapState();
     statusText.textContent = "Signed in. Opening your board...";
@@ -342,7 +348,7 @@ signInButton.addEventListener("click", async () => {
   } catch (error) {
     suppressNextAuthRefresh = false;
     console.error(error);
-    statusText.textContent = error.message || "Google sign-in failed.";
+    statusText.textContent = error.message || AUTH_PROVIDER.signInErrorLabel;
   } finally {
     signInButton.disabled = false;
   }
@@ -398,7 +404,7 @@ openBoardButton.addEventListener("click", async () => {
 
 sendEffectButton.addEventListener("click", async () => {
   if (!currentState) {
-    statusText.textContent = "Sign in with Google first.";
+    statusText.textContent = `${AUTH_PROVIDER.signInButtonLabel} first.`;
     return;
   }
 
@@ -446,7 +452,7 @@ friendOnlineNotificationsInput.addEventListener("change", () => {
   void updateLocalNotificationPreference();
 });
 
-onAuthStateChange((event, session) => {
+onPrimaryAuthStateChange((event, session) => {
   if (!session?.user) {
     return;
   }
@@ -461,6 +467,8 @@ onAuthStateChange((event, session) => {
     void refreshBootstrapState();
   }
 });
+
+signInButton.textContent = AUTH_PROVIDER.signInButtonLabel;
 
 closeHeroButton.addEventListener("click", async () => {
   await setLocalObject(POPUP_HERO_DISMISSED_KEY, true);

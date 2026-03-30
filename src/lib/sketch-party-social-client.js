@@ -1,7 +1,7 @@
 import { APP_ID } from "./constants.js";
 import { getSketchPartyAvatarDataUrl } from "./avatar.js";
 import { track } from "./analytics.js";
-import { getBestDisplayName, getCurrentUser } from "./auth.js";
+import { getAuthenticatedUser, getBestDisplayName } from "./auth.js";
 import { resolveEntitlement } from "./entitlements.js";
 import { createPartyCode } from "./party-code.js";
 import { supabase } from "./supabase-client.js";
@@ -95,7 +95,7 @@ function enrichState(rawState, user) {
 }
 
 async function getSocialStateInternal() {
-  const user = await getCurrentUser();
+  const user = await getAuthenticatedUser();
   if (!user) {
     return null;
   }
@@ -186,7 +186,7 @@ export async function setPreferences({ extensionEnabled, appearOnline, allowSurp
 }
 
 export async function updateProfile(displayName) {
-  const user = await getCurrentUser();
+  const user = await getAuthenticatedUser();
   if (!user) {
     throw new Error("No active session was found.");
   }

@@ -3,6 +3,16 @@ import { track } from "./analytics.js";
 import { createPartyCode } from "./party-code.js";
 import { supabase } from "./supabase-client.js";
 
+export const AUTH_PROVIDER = {
+  key: "google",
+  strategy: "supabase-oauth-google",
+  signInButtonLabel: "Sign in with Google",
+  signInStatusLabel: "Opening Google sign-in...",
+  signInErrorLabel: "Google sign-in failed.",
+  signedOutTitle: "Waiting for sign-in",
+  signedOutSubtitle: "Your account, friends, and preferences will load after sign-in.",
+};
+
 function getDisplayName(user, ownProfile = null) {
   return (
     ownProfile?.display_name ||
@@ -13,7 +23,7 @@ function getDisplayName(user, ownProfile = null) {
   );
 }
 
-export async function signInWithGoogle() {
+async function signInWithGoogle() {
   const redirectTo = chrome.identity.getRedirectURL();
   let data;
   let error;
@@ -82,6 +92,10 @@ export async function signInWithGoogle() {
   return exchange.data.session;
 }
 
+export async function beginPrimarySignIn() {
+  return signInWithGoogle();
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) {
@@ -126,3 +140,17 @@ export function onAuthStateChange(callback) {
 export function getBestDisplayName(user, ownProfile = null) {
   return getDisplayName(user, ownProfile);
 }
+
+export async function getAuthenticatedUser() {
+  return getCurrentUser();
+}
+
+export async function getPrimaryAccessToken() {
+  return getAccessToken();
+}
+
+export function onPrimaryAuthStateChange(callback) {
+  return onAuthStateChange(callback);
+}
+
+export { signInWithGoogle };

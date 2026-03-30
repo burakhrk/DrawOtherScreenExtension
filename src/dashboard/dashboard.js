@@ -11,7 +11,12 @@ import {
   PROFILE_STORAGE_KEY,
   QUICK_ACTION_KEY,
 } from "../lib/constants.js";
-import { getAccessToken, getCurrentUser, signInWithGoogle } from "../lib/auth.js";
+import {
+  AUTH_PROVIDER,
+  beginPrimarySignIn,
+  getAuthenticatedUser,
+  getPrimaryAccessToken,
+} from "../lib/auth.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import { getEntitlementBadge } from "../lib/entitlements.js";
 import { createPartyCode, isPartyCode, isUuidLike, normalizePartyIdentifier } from "../lib/party-code.js";
@@ -87,6 +92,8 @@ const leaveSessionButton = document.getElementById("leaveSession");
 const canvas = document.getElementById("drawCanvas");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 const toastStack = document.getElementById("toastStack");
+
+dashboardSignInButton.textContent = AUTH_PROVIDER.signInButtonLabel;
 
 let socket;
 let userId = "";
@@ -231,7 +238,7 @@ async function syncLivePreferencesFromStorage(nextPreferences) {
   }
 
   try {
-    const accessToken = isGuestMode ? null : await getAccessToken();
+    const accessToken = isGuestMode ? null : await getPrimaryAccessToken();
     send({
       type: "register-user",
       userId,
@@ -1687,7 +1694,7 @@ function connect() {
 
   socket.addEventListener("open", async () => {
     try {
-      const accessToken = isGuestMode ? null : await getAccessToken();
+      const accessToken = isGuestMode ? null : await getPrimaryAccessToken();
 
       send({
         type: "register-user",
@@ -2011,7 +2018,7 @@ profileForm.addEventListener("submit", async (event) => {
     applySocialState(state);
     setStatus("Profile updated", "ok");
     if (socket?.readyState === WebSocket.OPEN) {
-      const accessToken = await getAccessToken();
+      const accessToken = await getPrimaryAccessToken();
       send({
         type: "register-user",
         userId,
@@ -2221,7 +2228,7 @@ async function handleSessionStart(targetUserId, mode) {
     }
 
     currentRpcSession = await startSocialSession(targetUserId, mode);
-    const accessToken = await getAccessToken();
+    const accessToken = await getPrimaryAccessToken();
     send({
       type: "start-session",
       rpcSessionId: currentRpcSession.id,
@@ -2236,14 +2243,14 @@ async function handleSessionStart(targetUserId, mode) {
 
 async function handleDashboardSignIn() {
   dashboardSignInButton.disabled = true;
-  setStatus("Opening Google sign-in...");
+  setStatus(AUTH_PROVIDER.signInStatusLabel);
 
   try {
-    await signInWithGoogle();
+    await beginPrimarySignIn();
     await initialize();
   } catch (error) {
     console.error(error);
-    setStatus(error.message || "Google sign-in failed");
+    setStatus(error.message || AUTH_PROVIDER.signInErrorLabel);
     setSignedOutDashboardUI();
   } finally {
     dashboardSignInButton.disabled = false;
@@ -2270,7 +2277,7 @@ async function initialize() {
   setGlobalStatus("Connecting");
   void openOnboarding();
 
-  const user = await getCurrentUser();
+  const user = await getAuthenticatedUser();
   if (!user) {
     const guest = await getOrCreateGuestIdentity();
     isGuestMode = true;
