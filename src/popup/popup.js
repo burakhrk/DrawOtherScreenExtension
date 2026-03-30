@@ -341,7 +341,7 @@ signInButton.addEventListener("click", async () => {
   try {
     suppressNextAuthRefresh = true;
     const session = await beginPrimarySignIn();
-    applySignedInPendingUI(session?.user);
+    applySignedInPendingUI(session?.user || session);
     await refreshBootstrapState();
     statusText.textContent = "Signed in. Opening your board...";
     await openBoard();

@@ -31,7 +31,7 @@ const AUTH_PROVIDER_MAP = {
   },
 };
 
-export const AUTH_PROVIDER = AUTH_PROVIDER_MAP[PRIMARY_AUTH_MODE] || AUTH_PROVIDER_MAP.google;
+export const AUTH_PROVIDER = AUTH_PROVIDER_MAP[PRIMARY_AUTH_MODE] || AUTH_PROVIDER_MAP.patreon;
 const patreonAuthListeners = new Set();
 
 function getDisplayName(user, ownProfile = null) {
@@ -45,9 +45,16 @@ function getDisplayName(user, ownProfile = null) {
 }
 
 function emitPatreonAuthState(event, session) {
+  const mappedSession = session
+    ? {
+        ...session,
+        user: mapPatreonSessionToUser(session),
+      }
+    : null;
+
   for (const listener of patreonAuthListeners) {
     try {
-      listener(event, session);
+      listener(event, mappedSession);
     } catch (error) {
       console.error(error);
     }
@@ -271,7 +278,13 @@ export async function signOut() {
 
 export async function getSession() {
   if (AUTH_PROVIDER.key === "patreon") {
-    return getPatreonSession();
+    const session = await getPatreonSession();
+    return session
+      ? {
+          ...session,
+          user: mapPatreonSessionToUser(session),
+        }
+      : null;
   }
 
   const { data, error } = await supabase.auth.getSession();

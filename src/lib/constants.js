@@ -1,7 +1,7 @@
 export const APP_ID = "sketch-party";
 export const PAYWALL_URL = "https://extensions-hub-sites.vercel.app/sketch-party/payment";
 export const DEFAULT_RELAY_URL = "https://sync-sketch-party.onrender.com";
-export const PRIMARY_AUTH_MODE = "google";
+export const PRIMARY_AUTH_MODE = "patreon";
 export const PRO_TRIAL_HOURS = 48;
 export const PRO_ADVANCED_EFFECTS = ["zap", "heartburst", "bullet", "stickman", "stickerslap", "mexicanwave"];
 export const FREE_EFFECTS = ["draw", "crack", "scribble", "drip", "inkslap", "confetti"];

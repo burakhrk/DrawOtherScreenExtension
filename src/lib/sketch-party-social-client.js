@@ -1,7 +1,7 @@
 import { APP_ID } from "./constants.js";
 import { getSketchPartyAvatarDataUrl } from "./avatar.js";
 import { track } from "./analytics.js";
-import { getAuthenticatedUser, getBestDisplayName } from "./auth.js";
+import { AUTH_PROVIDER, getAuthenticatedUser, getBestDisplayName, getPrimaryAccessToken } from "./auth.js";
 import { resolveEntitlement } from "./entitlements.js";
 import { createPartyCode } from "./party-code.js";
 import { supabase } from "./supabase-client.js";
@@ -100,6 +100,15 @@ async function getSocialStateInternal() {
     return null;
   }
 
+  if (AUTH_PROVIDER.key === "patreon") {
+    const accessToken = await getPrimaryAccessToken();
+    if (!accessToken) {
+      throw new Error(
+        "Patreon identity is connected, but the internal Sketch Party account session is not ready yet. Finish the Patreon auth bridge before using saved friends and account-based social features.",
+      );
+    }
+  }
+
   const rawState = await rpc("get_social_state", { p_app_id: APP_ID });
   const state = enrichState(rawState, user);
 
@@ -189,6 +198,15 @@ export async function updateProfile(displayName) {
   const user = await getAuthenticatedUser();
   if (!user) {
     throw new Error("No active session was found.");
+  }
+
+  if (AUTH_PROVIDER.key === "patreon") {
+    const accessToken = await getPrimaryAccessToken();
+    if (!accessToken) {
+      throw new Error(
+        "Patreon identity is connected, but profile sync is not ready until the internal Sketch Party account session is connected.",
+      );
+    }
   }
 
   const { error } = await supabase
