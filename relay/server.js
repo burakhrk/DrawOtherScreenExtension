@@ -17,6 +17,7 @@ const patreonCampaignId = process.env.PATREON_CAMPAIGN_ID || "";
 const patreonRedirectUri = process.env.PATREON_REDIRECT_URI || "";
 const patreonScope = process.env.PATREON_SCOPE || "identity identity.memberships identity[email]";
 const patreonStateTtlMs = Number(process.env.PATREON_STATE_TTL_MS || 10 * 60 * 1000);
+const patreonTierMapJson = process.env.PATREON_TIER_MAP_JSON || "";
 
 const sessions = new Map();
 const socketsByUserId = new Map();
@@ -39,6 +40,7 @@ const metrics = {
 const serverStartedAt = Date.now();
 const metricsSamples = [];
 const patreonAuthStates = new Map();
+let parsedPatreonTierMap = null;
 
 const partyCodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -636,6 +638,94 @@ function buildPatreonAuthorizeUrl(requestStateId) {
   return authorizeUrl.toString();
 }
 
+function getPatreonTierMap() {
+  if (parsedPatreonTierMap !== null) {
+    return parsedPatreonTierMap;
+  }
+
+  if (!patreonTierMapJson.trim()) {
+    parsedPatreonTierMap = {};
+    return parsedPatreonTierMap;
+  }
+
+  try {
+    parsedPatreonTierMap = JSON.parse(patreonTierMapJson);
+    return parsedPatreonTierMap;
+  } catch (error) {
+    writeLog("error", "patreon_tier_map_invalid", {
+      message: error?.message || "invalid_json",
+    });
+    parsedPatreonTierMap = {};
+    return parsedPatreonTierMap;
+  }
+}
+
+function normalizePatreonTierTitle(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function inferDefaultEntitlementsFromTiers(tiers) {
+  const titles = tiers.map((tier) => normalizePatreonTierTitle(tier.title));
+  const hasSketchPartyPro = titles.some((title) =>
+    title.includes("sketch party pro") ||
+    title.includes("all extensions") ||
+    title.includes("bundle")
+  );
+  const hasDeepNotePro = titles.some((title) =>
+    title.includes("deep note pro") ||
+    title.includes("all extensions") ||
+    title.includes("bundle")
+  );
+
+  return {
+    "sketch-party": {
+      plan: hasSketchPartyPro ? "pro" : "free",
+      source: hasSketchPartyPro ? "patreon-tier-title" : "patreon-no-match",
+    },
+    "deep-note": {
+      plan: hasDeepNotePro ? "pro" : "free",
+      source: hasDeepNotePro ? "patreon-tier-title" : "patreon-no-match",
+    },
+  };
+}
+
+function resolveAppEntitlementsFromPatreon(identity) {
+  const tiers = Array.isArray(identity?.tiers) ? identity.tiers : [];
+  const tierIds = new Set(tiers.map((tier) => String(tier.id || "").trim()).filter(Boolean));
+  const tierTitles = new Set(tiers.map((tier) => normalizePatreonTierTitle(tier.title)).filter(Boolean));
+  const configuredMap = getPatreonTierMap();
+  const fallback = inferDefaultEntitlementsFromTiers(tiers);
+  const mergedApps = new Set([
+    ...Object.keys(fallback),
+    ...Object.keys(configuredMap || {}),
+  ]);
+
+  const output = {};
+
+  for (const appKey of mergedApps) {
+    const mapping = configuredMap?.[appKey] || {};
+    const mappingTierIds = Array.isArray(mapping.tierIds) ? mapping.tierIds.map((item) => String(item || "").trim()).filter(Boolean) : [];
+    const mappingTierTitles = Array.isArray(mapping.tierTitles) ? mapping.tierTitles.map(normalizePatreonTierTitle).filter(Boolean) : [];
+    const matchedConfiguredTier = mappingTierIds.some((tierId) => tierIds.has(tierId))
+      || mappingTierTitles.some((title) => tierTitles.has(title));
+
+    if (matchedConfiguredTier) {
+      output[appKey] = {
+        plan: "pro",
+        source: "patreon-tier-map",
+      };
+      continue;
+    }
+
+    output[appKey] = fallback[appKey] || {
+      plan: "free",
+      source: "patreon-no-match",
+    };
+  }
+
+  return output;
+}
+
 function extractPatreonIdentity(payload) {
   const data = payload?.data || {};
   const included = Array.isArray(payload?.included) ? payload.included : [];
@@ -647,9 +737,18 @@ function extractPatreonIdentity(payload) {
   const membership = included.find((item) => item?.type === "member") || null;
   const membershipAttributes = membership?.attributes || {};
   const patronStatus = membershipAttributes.patron_status || membershipAttributes.last_charge_status || "unknown";
-  const entitledTier = included.find((item) => item?.type === "tier") || null;
-  const tierTitle = entitledTier?.attributes?.title || "";
-  const isPro = Boolean(entitledTier);
+  const entitledTiers = included
+    .filter((item) => item?.type === "tier")
+    .map((item) => ({
+      id: item.id || "",
+      title: item?.attributes?.title || "",
+      amountCents: item?.attributes?.amount_cents || null,
+    }));
+  const tierTitle = entitledTiers[0]?.title || "";
+  const appEntitlements = resolveAppEntitlementsFromPatreon({
+    tiers: entitledTiers,
+  });
+  const isPro = Object.values(appEntitlements).some((entry) => entry?.plan === "pro");
 
   return {
     userId,
@@ -657,6 +756,8 @@ function extractPatreonIdentity(payload) {
     email,
     membershipStatus: patronStatus,
     tierTitle,
+    tiers: entitledTiers,
+    appEntitlements,
     isPro,
   };
 }
@@ -913,6 +1014,9 @@ const httpServer = http.createServer((request, response) => {
           email: identity.email,
           membership_status: identity.membershipStatus,
           tier_title: identity.tierTitle,
+          tier_titles: identity.tiers.map((tier) => tier.title).join("|"),
+          tier_ids: identity.tiers.map((tier) => tier.id).join("|"),
+          app_entitlements: JSON.stringify(identity.appEntitlements),
           is_pro: identity.isPro,
         }, extensionRedirectUri);
       })

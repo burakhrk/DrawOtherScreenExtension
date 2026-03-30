@@ -8,6 +8,7 @@ Use this checklist before enabling Patreon-only auth for Sketch Party.
 - `PATREON_CLIENT_SECRET`
 - `PATREON_CAMPAIGN_ID`
 - `PATREON_REDIRECT_URI`
+- optional: `PATREON_TIER_MAP_JSON`
 
 ## Recommended OAuth scopes
 
@@ -65,6 +66,34 @@ Next implementation step:
 - `source=chrome-extension`
 
 The callback currently returns Patreon identity data to the extension and explicitly marks `auth_ready=false` until app-session minting is finished.
+
+## Tier mapping for multiple extensions
+
+If you want one Patreon campaign to unlock different extensions with different tiers, set:
+
+- `PATREON_TIER_MAP_JSON`
+
+Example:
+
+```json
+{
+  "sketch-party": {
+    "tierIds": ["1234567", "9999999"],
+    "tierTitles": ["Sketch Party Pro", "All Extensions"]
+  },
+  "deep-note": {
+    "tierIds": ["7654321", "9999999"],
+    "tierTitles": ["Deep Note Pro", "All Extensions"]
+  }
+}
+```
+
+If this variable is not set, the relay falls back to title-based guesses such as:
+
+- `Sketch Party Pro`
+- `Deep Note Pro`
+- `All Extensions`
+- `Bundle`
 
 ## Notes
 

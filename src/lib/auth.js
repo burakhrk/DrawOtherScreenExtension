@@ -80,6 +80,9 @@ function mapPatreonSessionToUser(session) {
     return null;
   }
 
+  const extensionEntitlements = session.appEntitlements || {};
+  const currentAppEntitlement = extensionEntitlements[APP_ID] || null;
+
   return {
     id: session.userId,
     email: session.email || null,
@@ -88,7 +91,12 @@ function mapPatreonSessionToUser(session) {
       name: session.displayName || null,
       provider: "patreon",
       membership_status: session.membershipStatus || null,
-      is_pro: session.isPro === true,
+      is_pro: currentAppEntitlement?.plan === "pro" || session.isPro === true,
+      tier_titles: Array.isArray(session.tierTitles) ? session.tierTitles : [],
+    },
+    app_metadata: {
+      auth_provider: "patreon",
+      extension_entitlements: extensionEntitlements,
     },
   };
 }
@@ -149,6 +157,25 @@ async function signInWithPatreonBridge() {
     email: callback.searchParams.get("email") || "",
     membershipStatus: callback.searchParams.get("membership_status") || "unknown",
     tierTitle: callback.searchParams.get("tier_title") || "",
+    tierTitles: String(callback.searchParams.get("tier_titles") || "")
+      .split("|")
+      .map((value) => value.trim())
+      .filter(Boolean),
+    tierIds: String(callback.searchParams.get("tier_ids") || "")
+      .split("|")
+      .map((value) => value.trim())
+      .filter(Boolean),
+    appEntitlements: (() => {
+      const raw = callback.searchParams.get("app_entitlements") || "";
+      if (!raw) {
+        return {};
+      }
+      try {
+        return JSON.parse(raw);
+      } catch (error) {
+        return {};
+      }
+    })(),
     isPro: callback.searchParams.get("is_pro") === "true",
     authReady: callback.searchParams.get("auth_ready") === "true",
     accessToken: null,

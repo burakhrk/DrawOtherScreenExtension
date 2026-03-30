@@ -16,6 +16,13 @@ function getAppEntitlementMetadata(user) {
   );
 }
 
+function isPatreonBackedUser(user) {
+  return (
+    user?.app_metadata?.auth_provider === "patreon" ||
+    user?.user_metadata?.provider === "patreon"
+  );
+}
+
 function toTimestamp(value) {
   const timestamp = Date.parse(value || "");
   return Number.isNaN(timestamp) ? null : timestamp;
@@ -27,6 +34,7 @@ export function resolveEntitlement(user) {
   const paidUntil = toTimestamp(metadata.pro_until || metadata.proUntil || metadata.expires_at);
   const createdAt = toTimestamp(user?.created_at);
   const now = Date.now();
+  const patreonBacked = isPatreonBackedUser(user);
   const trialEndsAt = createdAt ? createdAt + (PRO_TRIAL_HOURS * 60 * 60 * 1000) : null;
   const trialActive = Boolean(trialEndsAt && now < trialEndsAt);
   const paidActive = Boolean(explicitPlan === "pro" || (paidUntil && paidUntil > now));
@@ -44,7 +52,7 @@ export function resolveEntitlement(user) {
     };
   }
 
-  if (trialActive) {
+  if (!patreonBacked && trialActive) {
     return {
       plan: "pro-trial",
       isPro: true,
@@ -61,7 +69,7 @@ export function resolveEntitlement(user) {
     plan: "free",
     isPro: false,
     isTrial: false,
-    source: "free",
+    source: patreonBacked ? "patreon-free" : "free",
     trialEndsAt: trialEndsAt ? new Date(trialEndsAt).toISOString() : null,
     hoursRemaining: 0,
     paywallUrl: PAYWALL_URL,
@@ -96,7 +104,9 @@ export function getEntitlementBadge(entitlement) {
 
   return {
     title: "Free plan",
-    detail: "Live shared drawing and advanced effects unlock with Pro.",
+    detail: entitlement?.source === "patreon-free"
+      ? "Free access is active. Patreon-based Pro unlocks live shared drawing and advanced effects."
+      : "Live shared drawing and advanced effects unlock with Pro.",
     cta: "Upgrade to Pro",
   };
 }
