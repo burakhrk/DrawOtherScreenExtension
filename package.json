@@ -6,6 +6,7 @@
   "main": "relay/server.js",
   "scripts": {
     "build": "node scripts/build-extension.mjs",
+    "package:extension": "npm run build && node scripts/package-extension.mjs",
     "start": "node relay/server.js",
     "check:relay": "node --check relay/server.js",
     "check:popup": "node --check src/popup/popup.js",

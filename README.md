@@ -49,8 +49,10 @@ Sketch Party is a Chrome extension plus a stateless WebSocket relay for social d
 ## Build Output
 
 - `npm run build` recreates `dist/` from scratch every time.
+- `npm run package:extension` builds `dist/` and creates a store-ready zip in `artifacts/`.
 - `dist/` only contains the files needed by the extension: `manifest.json`, `src/`, `public/`.
 - `dist/` is ignored by Git, so repeated builds do not dirty the repo.
+- `artifacts/` is ignored by Git too, so generated zip files do not dirty the repo.
 - Use `dist/` for Chrome `Load unpacked` and store packaging.
 
 ## Hosted Relay
