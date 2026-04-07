@@ -1,4 +1,3 @@
-import { track } from "../lib/analytics.js";
 import { getSketchPartyAvatarDataUrl } from "../lib/avatar.js";
 import {
   AUTH_PROVIDER,
@@ -10,73 +9,82 @@ import {
 import { createPartyCode } from "../lib/party-code.js";
 import {
   FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
-  POPUP_HERO_DISMISSED_KEY,
-  QUICK_ACTION_KEY,
+  POPUP_ONBOARDING_SEEN_KEY,
   PROFILE_STORAGE_KEY,
+  QUICK_ACTION_KEY,
+  DEFAULT_RELAY_URL as DEFAULT_SERVER_URL,
 } from "../lib/constants.js";
 import { getLocalObject, setLocalObject } from "../lib/chrome-storage.js";
 import { getLocalPreferences, saveLocalPreferences, updateStoredProfile } from "../lib/preferences.js";
 import { bootstrap, setPreferences } from "../lib/sketch-party-social-client.js";
 
-const DEFAULT_SERVER_URL = "https://sync-sketch-party.onrender.com";
 const QUICK_EFFECTS = {
-  crack: { effect: "crack", color: "#f4f0ea", size: 6, label: "Broken screen" },
-  drip: { effect: "drip", color: "#cb3046", size: 6, label: "Paint drip" },
-  inkslap: { effect: "inkslap", color: "#232018", size: 7, label: "Ink slap" },
-  confetti: { effect: "confetti", color: "#ef6a48", size: 7, label: "Confetti pop" },
-  bullet: { effect: "bullet", color: "#d8d2ca", size: 6, label: "Bullet impact - Pro", pro: true },
-  zap: { effect: "zap", color: "#f8f2b3", size: 6, label: "Lightning - Pro", pro: true },
-  heartburst: { effect: "heartburst", color: "#ff5b7c", size: 6, label: "Heart burst - Pro", pro: true },
-  stickman: { effect: "stickman", color: "#232018", size: 6, label: "Stickman - Pro", pro: true },
-  stickerslap: { effect: "stickerslap", color: "#ffd05b", size: 7, label: "Sticker slap - Pro", pro: true },
-  mexicanwave: { effect: "mexicanwave", color: "#4d83ff", size: 5, label: "Text wave - Pro", pro: true },
+  confetti: { effect: "confetti", color: "#2563eb", size: 7, label: "Confetti" },
+  drip: { effect: "drip", color: "#16a34a", size: 6, label: "Paint drip" },
+  inkslap: { effect: "inkslap", color: "#0f172a", size: 7, label: "Ink splash" },
+  scribble: { effect: "scribble", color: "#f97316", size: 6, label: "Scribble" },
+  crack: { effect: "crack", color: "#1f2937", size: 6, label: "Cracked glass" },
 };
 
-const form = document.getElementById("session-form");
-const accountCard = document.getElementById("accountCard");
-const settingsShell = document.getElementById("settingsShell");
-const heroCard = document.getElementById("heroCard");
-const closeHeroButton = document.getElementById("closeHeroButton");
-const onlinePresenceToggle = document.getElementById("onlinePresenceToggle");
-const serverUrlInput = document.getElementById("serverUrl");
-const extensionEnabledInput = document.getElementById("extensionEnabled");
-const allowSurpriseInput = document.getElementById("allowSurprise");
-const friendOnlineNotificationsInput = document.getElementById("friendOnlineNotifications");
-const quickFriendSelect = document.getElementById("quickFriendSelect");
-const quickEffectSelect = document.getElementById("quickEffect");
-const sendEffectButton = document.getElementById("sendEffectButton");
+const QUICK_EFFECT_ORDER = ["confetti", "drip", "inkslap", "scribble", "crack"];
+
+const accountStatePill = document.getElementById("accountStatePill");
 const accountTitle = document.getElementById("accountTitle");
 const accountSubtitle = document.getElementById("accountSubtitle");
 const accountAvatar = document.getElementById("accountAvatar");
-const accountStatePill = document.getElementById("accountStatePill");
 const signInButton = document.getElementById("signInButton");
 const signOutButton = document.getElementById("signOutButton");
-const signedInSummary = document.getElementById("signedInSummary");
-const compactAccountName = document.getElementById("compactAccountName");
-const compactAccountHint = document.getElementById("compactAccountHint");
+const openBoardButton = document.getElementById("openBoardButton");
+const addFriendInput = document.getElementById("addFriendInput");
+const addFriendButton = document.getElementById("addFriendButton");
 const popupPartyCode = document.getElementById("popupPartyCode");
 const copyPopupPartyCode = document.getElementById("copyPopupPartyCode");
-const compactSignOutButton = document.getElementById("compactSignOutButton");
-const settingsTitle = document.getElementById("settingsTitle");
-const settingsSubtitle = document.getElementById("settingsSubtitle");
-const settingsSummaryPill = document.getElementById("settingsSummaryPill");
-const statusText = document.getElementById("statusText");
-const openBoardButton = document.getElementById("openBoardButton");
-const quickActionsBlock = document.getElementById("quickActionsBlock");
+const friendsListCompact = document.getElementById("friendsListCompact");
+const friendCountMini = document.getElementById("friendCountMini");
 const noFriendsHint = document.getElementById("noFriendsHint");
+const quickEffectCards = document.getElementById("quickEffectCards");
+const selectedFriendLabel = document.getElementById("selectedFriendLabel");
+const sendEffectButton = document.getElementById("sendEffectButton");
+const quickFriendSelect = document.getElementById("quickFriendSelect");
+const quickEffectSelect = document.getElementById("quickEffect");
+const serverUrlInput = document.getElementById("serverUrl");
+const extensionEnabledInput = document.getElementById("extensionEnabled");
+const onlinePresenceToggle = document.getElementById("onlinePresenceToggle");
+const allowSurpriseInput = document.getElementById("allowSurprise");
+const friendOnlineNotificationsInput = document.getElementById("friendOnlineNotifications");
+const statusText = document.getElementById("statusText");
+const onboardingCard = document.getElementById("onboardingCard");
+const onboardingTitle = document.getElementById("onboardingTitle");
+const onboardingText = document.getElementById("onboardingText");
+const onboardingStepIndicator = document.getElementById("onboardingStepIndicator");
+const nextOnboarding = document.getElementById("nextOnboarding");
+const skipOnboarding = document.getElementById("skipOnboarding");
 
 let currentState = null;
 let suppressNextAuthRefresh = false;
+let selectedFriendId = "";
+let selectedEffectKey = "";
+let onboardingStep = 0;
 
-async function applyHeroVisibility() {
-  const dismissed = await getLocalObject(POPUP_HERO_DISMISSED_KEY, false);
-  heroCard.classList.toggle("hidden", Boolean(dismissed));
-}
+const onboardingSteps = [
+  {
+    title: "Add a friend fast",
+    text: "Paste their party code or profile name. We’ll remember it.",
+  },
+  {
+    title: "Send a quick animation",
+    text: "Pick a friend, choose an animation card, and send.",
+  },
+];
 
-function avatarFromName(name) {
-  const safe = (name || "SP").trim();
-  const parts = safe.split(/\s+/).filter(Boolean).slice(0, 2);
-  return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "SP";
+function normalizeServerUrl(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return DEFAULT_SERVER_URL;
+  }
+
+  const url = new URL(trimmed);
+  return url.toString().replace(/\/$/, "");
 }
 
 function applyAvatar(seed, name) {
@@ -87,199 +95,139 @@ function applyAvatar(seed, name) {
   accountAvatar.style.setProperty("--avatar-image", `url("${getSketchPartyAvatarDataUrl(seed || label, label)}")`);
 }
 
-function normalizeServerUrl(value) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return DEFAULT_SERVER_URL;
+function setStatus(text) {
+  statusText.textContent = text;
+}
+
+function updateSendButtonState() {
+  const ready = Boolean(currentState && selectedFriendId && selectedEffectKey);
+  sendEffectButton.disabled = !ready;
+}
+
+function selectFriend(userId, displayName) {
+  selectedFriendId = userId || "";
+  quickFriendSelect.value = userId || "";
+  selectedFriendLabel.textContent = displayName ? `Sending to ${displayName}` : "Choose a friend";
+  updateSendButtonState();
+
+  for (const chip of friendsListCompact.querySelectorAll(".friend-chip")) {
+    chip.classList.toggle("selected", chip.dataset.userId === userId);
   }
-
-  const url = new URL(trimmed);
-  return url.toString().replace(/\/$/, "");
 }
 
-function setGuardedState(element, guarded) {
-  element.classList.toggle("is-guarded", guarded);
-  element.setAttribute("aria-disabled", String(guarded));
+function selectEffect(effectKey) {
+  selectedEffectKey = effectKey || "";
+  quickEffectSelect.value = effectKey || "";
+  updateSendButtonState();
+
+  for (const card of quickEffectCards.querySelectorAll(".effect-card")) {
+    card.classList.toggle("selected", card.dataset.effect === effectKey);
+  }
 }
 
-function toggleAuthenticatedUI(isAuthenticated) {
-  form.classList.toggle("is-disabled", !isAuthenticated);
-  setGuardedState(openBoardButton, false);
-  setGuardedState(sendEffectButton, !isAuthenticated);
-  quickFriendSelect.disabled = !isAuthenticated;
-  quickEffectSelect.disabled = false;
-  signInButton.classList.toggle("hidden", isAuthenticated);
-  signOutButton.classList.toggle("hidden", !isAuthenticated);
-  signedInSummary.classList.toggle("hidden", !isAuthenticated);
-  accountCard.classList.toggle("hidden", isAuthenticated);
-  settingsShell.open = isAuthenticated;
-  settingsTitle.textContent = isAuthenticated ? "Board controls" : "Preferences";
-  settingsSubtitle.textContent = isAuthenticated
-    ? "Online status, party code, surprise permissions, and connection"
-    : "Visibility, surprise permissions, and connection";
-  settingsSummaryPill.textContent = isAuthenticated ? "Live" : "Settings";
-}
+function renderEffectCards() {
+  quickEffectCards.innerHTML = "";
+  quickEffectSelect.innerHTML = "";
 
-function updateQuickActionsVisibility(friendCount) {
-  const hasFriends = friendCount > 0;
-  quickActionsBlock.classList.toggle("hidden", !hasFriends);
-  noFriendsHint.classList.toggle("hidden", hasFriends);
-  quickFriendSelect.disabled = !hasFriends;
-}
-
-function renderQuickFriendOptions(friends = []) {
-  quickFriendSelect.innerHTML = '<option value="">Choose a friend</option>';
-
-  for (const friend of friends) {
+  for (const key of QUICK_EFFECT_ORDER) {
+    const effect = QUICK_EFFECTS[key];
     const option = document.createElement("option");
-    option.value = friend.userId;
-    option.textContent = friend.displayName;
-    quickFriendSelect.appendChild(option);
+    option.value = key;
+    option.textContent = effect.label;
+    quickEffectSelect.appendChild(option);
+
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "effect-card";
+    card.dataset.effect = key;
+    card.innerHTML = `
+      <div class="effect-name">${effect.label}</div>
+      <div class="effect-meta">${effect.effect}</div>
+    `;
+    card.addEventListener("click", () => selectEffect(key));
+    quickEffectCards.appendChild(card);
   }
+
+  selectEffect(QUICK_EFFECT_ORDER[0]);
 }
 
-function syncEffectEntitlementUI(entitlement) {
-  const isPro = Boolean(entitlement?.isPro);
+function renderFriendsList(friends = []) {
+  friendsListCompact.innerHTML = "";
+  friendCountMini.textContent = `${friends.length} ready`;
 
-  for (const option of quickEffectSelect.options) {
-    const requiresPro = option.dataset.pro === "true";
-    option.disabled = requiresPro && !isPro;
-  }
-
-  const currentOption = quickEffectSelect.selectedOptions[0];
-  if (currentOption?.dataset.pro === "true" && !isPro) {
-    quickEffectSelect.value = "";
-  }
-}
-
-function applySignedInPendingUI(user) {
-  const displayName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email ||
-    "Sketch Party user";
-
-  currentState = {
-    user: {
-      id: user?.id || "",
-      displayName,
-      email: user?.email || "",
-    },
-    preferences: {
-      extensionEnabled: true,
-      appearOnline: true,
-      allowSurprise: true,
-    },
-    entitlement: null,
-    friends: [],
-    incomingRequests: [],
-  };
-
-  accountTitle.textContent = displayName;
-  accountSubtitle.textContent = user?.email || "Your account is connected. Loading your Sketch Party state...";
-  applyAvatar(user?.id || user?.email || displayName, displayName);
-  accountStatePill.textContent = "Signed in";
-  accountStatePill.style.background = "var(--success)";
-  onlinePresenceToggle.checked = true;
-  compactAccountName.textContent = displayName;
-  compactAccountHint.textContent = "Your controls and party code are ready.";
-  popupPartyCode.textContent = createPartyCode(user?.id || displayName);
-  statusText.textContent = "Finishing setup and loading your friends...";
-  accountCard.classList.remove("is-signed-out-minimal");
-  accountCard.classList.add("is-signed-in-minimal");
-  syncEffectEntitlementUI(null);
-  updateQuickActionsVisibility(0);
-  renderQuickFriendOptions([]);
-  toggleAuthenticatedUI(true);
-}
-
-async function openPaywall() {
-  const paywallUrl = currentState?.entitlement?.paywallUrl;
-  if (!paywallUrl) {
-    statusText.textContent = "The paywall URL is not configured yet.";
+  if (!friends.length) {
+    noFriendsHint.classList.remove("hidden");
+    selectFriend("", "");
+    updateSendButtonState();
     return;
   }
 
-  await track("Opened Paywall", {
-    screen: "popup",
-    surface: "membership",
-    result: "success",
-  });
+  noFriendsHint.classList.add("hidden");
 
-  await chrome.tabs.create({ url: paywallUrl });
-}
-
-async function openBoard(quickAction = null) {
-  const serverUrl = normalizeServerUrl(serverUrlInput.value);
-
-  await updateStoredProfile({
-    serverUrl,
-  });
-
-  if (quickAction) {
-    await setLocalObject(QUICK_ACTION_KEY, quickAction);
-  } else {
-    await chrome.storage.local.remove(QUICK_ACTION_KEY);
+  for (const friend of friends) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "friend-chip";
+    chip.dataset.userId = friend.userId;
+    chip.innerHTML = `
+      <span class="friend-name">${friend.displayName}</span>
+      <span class="status-dot ${friend.online ? "online" : ""}"></span>
+    `;
+    chip.addEventListener("click", () => selectFriend(friend.userId, friend.displayName));
+    friendsListCompact.appendChild(chip);
   }
 
-  const url = new URL(chrome.runtime.getURL("src/dashboard/dashboard.html"));
-  url.searchParams.set("serverUrl", serverUrl);
-  await chrome.tabs.create({ url: url.toString() });
-  window.close();
+  if (!selectedFriendId) {
+    selectFriend(friends[0]?.userId, friends[0]?.displayName);
+  } else {
+    const stillExists = friends.some((f) => f.userId === selectedFriendId);
+    if (!stillExists) {
+      selectFriend(friends[0]?.userId, friends[0]?.displayName);
+    }
+  }
+}
+
+function toggleAuthenticatedUI(isAuthenticated) {
+  signInButton.classList.toggle("hidden", isAuthenticated);
+  signOutButton.classList.toggle("hidden", !isAuthenticated);
+  accountStatePill.textContent = isAuthenticated ? "Online" : "Offline";
+  accountStatePill.style.background = isAuthenticated ? "#d1fae5" : "#fef3c7";
 }
 
 async function applyBootstrapState(state) {
   currentState = state;
-  const notificationsEnabled = await getLocalObject(FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY, false);
-  friendOnlineNotificationsInput.checked = Boolean(notificationsEnabled);
   const localProfile = await getLocalObject(PROFILE_STORAGE_KEY, {});
   const localPreferences = await getLocalPreferences();
+  const notificationsEnabled = await getLocalObject(FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY, false);
+  friendOnlineNotificationsInput.checked = Boolean(notificationsEnabled);
+  serverUrlInput.value = localProfile?.serverUrl || DEFAULT_SERVER_URL;
 
   if (!state) {
     accountTitle.textContent = AUTH_PROVIDER.signedOutTitle;
     accountSubtitle.textContent = AUTH_PROVIDER.signedOutSubtitle;
     applyAvatar("popup-signed-out", "Sketch Party");
-    accountStatePill.textContent = "Not ready";
-    accountStatePill.style.background = "#f3e5d5";
+    popupPartyCode.textContent = "-";
     extensionEnabledInput.checked = localPreferences.extensionEnabled;
     onlinePresenceToggle.checked = localPreferences.appearOnline;
     allowSurpriseInput.checked = localPreferences.allowSurprise;
-    statusText.textContent = "Open the board anytime or sign in here.";
-    popupPartyCode.textContent = "-";
-    serverUrlInput.value = localProfile?.serverUrl || DEFAULT_SERVER_URL;
-    syncEffectEntitlementUI(null);
-    accountCard.classList.add("is-signed-out-minimal");
-    accountCard.classList.remove("is-signed-in-minimal");
-    updateQuickActionsVisibility(0);
-    renderQuickFriendOptions([]);
+    renderFriendsList([]);
     toggleAuthenticatedUI(false);
+    setStatus("Open the board or sign in to load your friends.");
+    updateSendButtonState();
     return;
   }
 
-  serverUrlInput.value = localProfile.serverUrl || DEFAULT_SERVER_URL;
   extensionEnabledInput.checked = state.preferences.extensionEnabled;
   onlinePresenceToggle.checked = state.preferences.appearOnline;
   allowSurpriseInput.checked = state.preferences.allowSurprise;
-  await saveLocalPreferences(state.preferences);
-  accountTitle.textContent = state.user.displayName;
-  accountSubtitle.textContent = state.user.email || "Your Sketch Party account is connected.";
-  applyAvatar(state.user.id || state.user.displayName, state.user.displayName);
-  compactAccountName.textContent = state.user.displayName;
-  compactAccountHint.textContent = `${state.friends.length} friends ready.`;
   popupPartyCode.textContent = createPartyCode(state.user.id || state.user.displayName);
-  accountStatePill.textContent = state.preferences.extensionEnabled
-    ? (state.preferences.appearOnline ? "Online" : "Hidden")
-    : "Inactive";
-  accountStatePill.style.background = state.preferences.extensionEnabled
-    ? (state.preferences.appearOnline ? "var(--success)" : "var(--blue)")
-    : "#f3e5d5";
-  syncEffectEntitlementUI(state.entitlement);
-  statusText.textContent = `${state.friends.length} friends and ${state.incomingRequests.length} incoming requests are ready.`;
-  accountCard.classList.remove("is-signed-out-minimal");
-  accountCard.classList.add("is-signed-in-minimal");
-  updateQuickActionsVisibility(state.friends.length);
-  renderQuickFriendOptions(state.friends);
+  accountTitle.textContent = state.user.displayName;
+  accountSubtitle.textContent = state.user.email || "Your account is connected.";
+  applyAvatar(state.user.id || state.user.displayName, state.user.displayName);
+  renderFriendsList(state.friends);
   toggleAuthenticatedUI(true);
+  setStatus(`${state.friends.length} friends ready. Choose one and send an animation.`);
+  updateSendButtonState();
 }
 
 async function refreshBootstrapState() {
@@ -294,13 +242,8 @@ async function refreshBootstrapState() {
     await applyBootstrapState(state);
   } catch (error) {
     console.error(error);
-    statusText.textContent = error.message || "Account state could not be loaded.";
-    const user = await getAuthenticatedUser().catch(() => null);
-    if (!user) {
-      await applyBootstrapState(null);
-      return;
-    }
-    toggleAuthenticatedUI(false);
+    setStatus(error.message || "Account state could not be loaded.");
+    await applyBootstrapState(null);
   }
 }
 
@@ -315,7 +258,7 @@ async function updatePreferenceState() {
     await saveLocalPreferences(nextPreferences);
 
     if (!currentState) {
-      statusText.textContent = "Guest preferences saved for your board.";
+      setStatus("Preferences saved for your next session.");
       return;
     }
 
@@ -323,32 +266,124 @@ async function updatePreferenceState() {
     await applyBootstrapState(state);
   } catch (error) {
     console.error(error);
-    statusText.textContent = error.message || "Preferences could not be saved.";
+    setStatus(error.message || "Preferences could not be saved.");
   }
 }
 
 async function updateLocalNotificationPreference() {
-  await setLocalObject(
-    FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY,
-    Boolean(friendOnlineNotificationsInput.checked),
-  );
+  await setLocalObject(FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY, Boolean(friendOnlineNotificationsInput.checked));
+}
+
+async function openBoard(quickAction = null) {
+  const serverUrl = normalizeServerUrl(serverUrlInput.value);
+
+  await updateStoredProfile({ serverUrl });
+
+  if (quickAction) {
+    await setLocalObject(QUICK_ACTION_KEY, quickAction);
+  } else {
+    await chrome.storage.local.remove(QUICK_ACTION_KEY);
+  }
+
+  const url = new URL(chrome.runtime.getURL("src/dashboard/dashboard.html"));
+  url.searchParams.set("serverUrl", serverUrl);
+  await chrome.tabs.create({ url: url.toString() });
+  window.close();
+}
+
+async function handleSendEffect() {
+  if (!currentState) {
+    setStatus(`${AUTH_PROVIDER.signInButtonLabel} first.`);
+    return;
+  }
+
+  if (!selectedFriendId) {
+    setStatus("Pick a friend first.");
+    return;
+  }
+
+  const selected = QUICK_EFFECTS[selectedEffectKey];
+  if (!selected) {
+    setStatus("Choose an animation.");
+    return;
+  }
+
+  await openBoard({
+    type: "effect",
+    targetUserId: selectedFriendId,
+    effect: selected.effect,
+    color: selected.color,
+    size: selected.size,
+    label: selected.label,
+  });
+}
+
+async function handleAddFriend() {
+  const identifier = addFriendInput.value.trim();
+  if (!identifier) {
+    setStatus("Paste a party code or profile name first.");
+    return;
+  }
+
+  await setLocalObject(QUICK_ACTION_KEY, {
+    type: "pair",
+    identifier,
+  });
+
+  setStatus("Opening board to send the request...");
+  await openBoard();
+}
+
+async function maybeShowOnboarding() {
+  const seen = await getLocalObject(POPUP_ONBOARDING_SEEN_KEY, false);
+  if (seen) {
+    onboardingCard.classList.add("hidden");
+    return;
+  }
+
+  onboardingStep = 0;
+  renderOnboardingStep();
+  onboardingCard.classList.remove("hidden");
+}
+
+async function finishOnboarding() {
+  onboardingCard.classList.add("hidden");
+  await setLocalObject(POPUP_ONBOARDING_SEEN_KEY, true);
+}
+
+function renderOnboardingStep() {
+  const step = onboardingSteps[onboardingStep];
+  onboardingTitle.textContent = step.title;
+  onboardingText.textContent = step.text;
+  onboardingStepIndicator.textContent = `${onboardingStep + 1} / ${onboardingSteps.length}`;
+  nextOnboarding.textContent = onboardingStep === onboardingSteps.length - 1 ? "Got it" : "Next";
 }
 
 signInButton.addEventListener("click", async () => {
-  statusText.textContent = AUTH_PROVIDER.signInStatusLabel;
+  setStatus(AUTH_PROVIDER.signInStatusLabel);
   signInButton.disabled = true;
 
   try {
     suppressNextAuthRefresh = true;
     const session = await beginPrimarySignIn();
-    applySignedInPendingUI(session?.user || session);
+    const user = session?.user || session;
+    const displayName =
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      user?.email ||
+      "Sketch Party user";
+    applyAvatar(user?.id || user?.email || displayName, displayName);
+    accountTitle.textContent = displayName;
+    accountSubtitle.textContent = user?.email || "Connected. Loading your friends...";
+    popupPartyCode.textContent = createPartyCode(user?.id || displayName);
+    toggleAuthenticatedUI(true);
     await refreshBootstrapState();
-    statusText.textContent = "Signed in. Opening your board...";
+    setStatus("Signed in. Opening your board...");
     await openBoard();
   } catch (error) {
     suppressNextAuthRefresh = false;
     console.error(error);
-    statusText.textContent = error.message || AUTH_PROVIDER.signInErrorLabel;
+    setStatus(error.message || AUTH_PROVIDER.signInErrorLabel);
   } finally {
     signInButton.disabled = false;
   }
@@ -359,81 +394,34 @@ signOutButton.addEventListener("click", async () => {
 
   try {
     await signOut();
-    quickEffectSelect.value = "";
+    selectFriend("", "");
+    selectEffect(QUICK_EFFECT_ORDER[0]);
     await applyBootstrapState(null);
   } catch (error) {
     console.error(error);
-    statusText.textContent = error.message || "Sign out failed.";
+    setStatus(error.message || "Sign out failed.");
   } finally {
     signOutButton.disabled = false;
   }
-});
-
-compactSignOutButton.addEventListener("click", async () => {
-  signOutButton.disabled = true;
-  compactSignOutButton.disabled = true;
-
-  try {
-    await signOut();
-    quickEffectSelect.value = "";
-    await applyBootstrapState(null);
-  } catch (error) {
-    console.error(error);
-    statusText.textContent = error.message || "Sign out failed.";
-  } finally {
-    signOutButton.disabled = false;
-    compactSignOutButton.disabled = false;
-  }
-});
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  await track("Extension Installed", {
-    screen: "popup",
-    surface: "open-board",
-    result: "success",
-  });
-
-  await openBoard();
 });
 
 openBoardButton.addEventListener("click", async () => {
   await openBoard();
 });
 
-sendEffectButton.addEventListener("click", async () => {
-  if (!currentState) {
-    statusText.textContent = `${AUTH_PROVIDER.signInButtonLabel} first.`;
-    return;
-  }
+sendEffectButton.addEventListener("click", () => {
+  void handleSendEffect();
+});
 
-  const targetUserId = quickFriendSelect.value;
-  if (!targetUserId) {
-    statusText.textContent = "Choose a friend first.";
-    return;
-  }
+addFriendButton.addEventListener("click", () => {
+  void handleAddFriend();
+});
 
-  const selected = QUICK_EFFECTS[quickEffectSelect.value];
-  if (!selected) {
-    statusText.textContent = "Choose an effect first.";
-    return;
+addFriendInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void handleAddFriend();
   }
-
-  if (selected.pro && !currentState.entitlement?.isPro) {
-    statusText.textContent = "That effect is available on Pro.";
-    await openPaywall();
-    return;
-  }
-
-  await openBoard({
-    type: "effect",
-    targetUserId,
-    effect: selected.effect,
-    color: selected.color,
-    size: selected.size,
-    label: selected.label,
-  });
 });
 
 extensionEnabledInput.addEventListener("change", () => {
@@ -452,6 +440,38 @@ friendOnlineNotificationsInput.addEventListener("change", () => {
   void updateLocalNotificationPreference();
 });
 
+quickFriendSelect.addEventListener("change", () => {
+  const option = quickFriendSelect.selectedOptions[0];
+  selectFriend(option?.value || "", option?.textContent || "");
+});
+
+quickEffectSelect.addEventListener("change", () => {
+  selectEffect(quickEffectSelect.value);
+});
+
+copyPopupPartyCode.addEventListener("click", async () => {
+  if (!popupPartyCode.textContent || popupPartyCode.textContent === "-") {
+    return;
+  }
+
+  await navigator.clipboard.writeText(popupPartyCode.textContent);
+  setStatus("Party code copied.");
+});
+
+nextOnboarding.addEventListener("click", () => {
+  if (onboardingStep === onboardingSteps.length - 1) {
+    void finishOnboarding();
+    return;
+  }
+
+  onboardingStep += 1;
+  renderOnboardingStep();
+});
+
+skipOnboarding.addEventListener("click", () => {
+  void finishOnboarding();
+});
+
 onPrimaryAuthStateChange((event, session) => {
   if (!session?.user) {
     return;
@@ -463,26 +483,13 @@ onPrimaryAuthStateChange((event, session) => {
   }
 
   if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
-    applySignedInPendingUI(session.user);
     void refreshBootstrapState();
   }
 });
 
 signInButton.textContent = AUTH_PROVIDER.signInButtonLabel;
 
-closeHeroButton.addEventListener("click", async () => {
-  await setLocalObject(POPUP_HERO_DISMISSED_KEY, true);
-  heroCard.classList.add("hidden");
-});
-
-copyPopupPartyCode.addEventListener("click", async () => {
-  if (!popupPartyCode.textContent || popupPartyCode.textContent === "-") {
-    return;
-  }
-
-  await navigator.clipboard.writeText(popupPartyCode.textContent);
-  statusText.textContent = "Party code copied.";
-});
-
-void applyHeroVisibility();
+renderEffectCards();
+void applyBootstrapState(null);
 void refreshBootstrapState();
+void maybeShowOnboarding();

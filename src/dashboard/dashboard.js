@@ -1620,6 +1620,31 @@ async function applyQuickAction() {
     });
   }
 
+  if (action.type === "pair" && action.identifier) {
+    try {
+      const recipient = await resolveRecipientIdentifier(action.identifier);
+      if (isGuestMode) {
+        await handleSessionStart(recipient.userId, "send");
+        setStatus(`Trying ${recipient.displayName}...`, "ok");
+        return;
+      }
+
+      const state = await sendFriendRequest(recipient.userId);
+      applySocialState(state);
+      setStatus(`Request sent to ${recipient.displayName}`, "ok");
+      addMessage({
+        system: true,
+        text: `Friend request sent to ${recipient.displayName}.`,
+      });
+    } catch (error) {
+      setStatus(error.message || "The request could not be sent");
+      addMessage({
+        system: true,
+        text: error.message || "The request could not be sent.",
+      });
+    }
+  }
+
   if (action.type === "effect" && action.effect) {
     if (!canUseEffect(action.effect)) {
       addMessage({

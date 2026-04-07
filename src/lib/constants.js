@@ -1,7 +1,7 @@
 export const APP_ID = "sketch-party";
 export const PAYWALL_URL = "https://extensions-hub-sites.vercel.app/sketch-party/payment";
 export const DEFAULT_RELAY_URL = "https://sync-sketch-party.onrender.com";
-export const PRIMARY_AUTH_MODE = "patreon";
+export const PRIMARY_AUTH_MODE = "google";
 export const PRO_TRIAL_HOURS = 48;
 export const PRO_ADVANCED_EFFECTS = ["zap", "heartburst", "bullet", "stickman", "stickerslap", "mexicanwave"];
 export const FREE_EFFECTS = ["draw", "crack", "scribble", "drip", "inkslap", "confetti"];
@@ -18,3 +18,4 @@ export const FRIEND_ONLINE_NOTIFICATION_KEY = "sketch-party-friend-online-notifi
 export const FRIEND_ONLINE_NOTIFICATIONS_ENABLED_KEY = "sketch-party-friend-online-notifications-enabled";
 export const POPUP_HERO_DISMISSED_KEY = "sketch-party-popup-hero-dismissed";
 export const DASHBOARD_ONBOARDING_SEEN_KEY = "sketch-party-dashboard-onboarding-seen";
+export const POPUP_ONBOARDING_SEEN_KEY = "sketch-party-popup-onboarding-seen";

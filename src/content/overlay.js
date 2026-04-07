@@ -3,6 +3,8 @@ let overlayContext;
 let fadeTimer;
 let activeMexicanWaveCleanup = null;
 const effectRenderCooldownState = new Map();
+let overlayNotice;
+let overlayNoticeTimer;
 
 function ensureOverlay() {
   if (overlayCanvas) {
@@ -17,9 +19,76 @@ function ensureOverlay() {
   overlayCanvas.style.pointerEvents = "none";
   overlayCanvas.style.zIndex = "2147483647";
   overlayCanvas.style.background = "transparent";
+  overlayCanvas.style.display = "block";
   document.documentElement.appendChild(overlayCanvas);
   overlayContext = overlayCanvas.getContext("2d");
   resizeOverlay();
+}
+
+function ensureOverlayNotice() {
+  if (overlayNotice) {
+    return;
+  }
+
+  overlayNotice = document.createElement("div");
+  overlayNotice.style.position = "fixed";
+  overlayNotice.style.bottom = "16px";
+  overlayNotice.style.right = "16px";
+  overlayNotice.style.zIndex = "2147483648";
+  overlayNotice.style.display = "flex";
+  overlayNotice.style.alignItems = "center";
+  overlayNotice.style.gap = "8px";
+  overlayNotice.style.padding = "10px 12px";
+  overlayNotice.style.borderRadius = "999px";
+  overlayNotice.style.background = "rgba(15, 23, 42, 0.9)";
+  overlayNotice.style.color = "#f9fafb";
+  overlayNotice.style.fontSize = "13px";
+  overlayNotice.style.boxShadow = "0 10px 30px rgba(0,0,0,0.25)";
+  overlayNotice.style.cursor = "default";
+  overlayNotice.style.transition = "opacity 150ms ease";
+  overlayNotice.style.opacity = "0";
+  overlayNotice.style.pointerEvents = "none";
+  overlayNotice.textContent = "Sketch Party overlay active";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Hide";
+  button.style.border = "1px solid rgba(248, 250, 252, 0.3)";
+  button.style.background = "rgba(248, 250, 252, 0.12)";
+  button.style.color = "#f9fafb";
+  button.style.borderRadius = "8px";
+  button.style.padding = "6px 10px";
+  button.style.cursor = "pointer";
+  button.style.pointerEvents = "auto";
+
+  button.addEventListener("click", () => {
+    if (overlayCanvas) {
+      overlayCanvas.style.display = "none";
+      overlayContext?.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
+    hideOverlayNotice();
+  });
+
+  overlayNotice.appendChild(button);
+  document.documentElement.appendChild(overlayNotice);
+}
+
+function hideOverlayNotice() {
+  if (!overlayNotice) {
+    return;
+  }
+  overlayNotice.style.opacity = "0";
+  overlayNotice.style.pointerEvents = "none";
+}
+
+function showOverlayNotice() {
+  ensureOverlayNotice();
+  overlayNotice.style.opacity = "1";
+  overlayNotice.style.pointerEvents = "auto";
+  clearTimeout(overlayNoticeTimer);
+  overlayNoticeTimer = window.setTimeout(() => {
+    hideOverlayNotice();
+  }, 8000);
 }
 
 function resizeOverlay() {
@@ -629,7 +698,9 @@ function drawEffect(segment) {
   }
 
   ensureOverlay();
+  overlayCanvas.style.display = "block";
   overlayCanvas.style.opacity = "1";
+  showOverlayNotice();
 
   if (segment.effect === "mexicanwave") {
     runMexicanWaveEffect();
@@ -671,6 +742,7 @@ chrome.runtime.onMessage.addListener((message) => {
     ensureOverlay();
     overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     overlayCanvas.style.opacity = "1";
+    hideOverlayNotice();
   }
 });
 

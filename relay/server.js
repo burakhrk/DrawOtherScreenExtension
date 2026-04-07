@@ -7,14 +7,14 @@ const host = process.env.HOST || "0.0.0.0";
 const reconnectGraceMs = Number(process.env.RECONNECT_GRACE_MS || 8000);
 const maxPayloadBytes = Number(process.env.MAX_PAYLOAD_BYTES || 32 * 1024);
 const appId = process.env.APP_ID || "sketch-party";
-const supabaseUrl = process.env.SUPABASE_URL || "https://lpgdopfqvertiwcmyokh.supabase.co";
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2RvcGZxdmVydGl3Y215b2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzkwNTksImV4cCI6MjA4OTI1NTA1OX0.FoEinT6HMlAn8kBBS5Lxw-DDk9PjwZnrr8bJhW5kVXY";
+const supabaseUrl = process.env.SUPABASE_URL || "";
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
 const logLevel = process.env.LOG_LEVEL || "info";
 const metricsSampleWindowMs = Number(process.env.METRICS_SAMPLE_WINDOW_MS || 60_000);
-const patreonClientId = process.env.PATREON_CLIENT_ID || "E9JXJ-SL14HVTix8kf3OKAaAneCrWH5W1IA4jZepAeN32ObkUZJZrouPJSd-ONBc";
+const patreonClientId = process.env.PATREON_CLIENT_ID || "";
 const patreonClientSecret = process.env.PATREON_CLIENT_SECRET || "";
 const patreonCampaignId = process.env.PATREON_CAMPAIGN_ID || "";
-const patreonRedirectUri = process.env.PATREON_REDIRECT_URI || "https://sync-sketch-party.onrender.com/auth/patreon/callback";
+const patreonRedirectUri = process.env.PATREON_REDIRECT_URI || "";
 const patreonScope = process.env.PATREON_SCOPE || "identity identity.memberships identity[email]";
 const patreonStateTtlMs = Number(process.env.PATREON_STATE_TTL_MS || 10 * 60 * 1000);
 const patreonTierMapJson = process.env.PATREON_TIER_MAP_JSON || "";
@@ -41,6 +41,24 @@ const serverStartedAt = Date.now();
 const metricsSamples = [];
 const patreonAuthStates = new Map();
 let parsedPatreonTierMap = null;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(
+    JSON.stringify(
+      {
+        level: "error",
+        event: "missing_required_env",
+        missing: {
+          SUPABASE_URL: !supabaseUrl,
+          SUPABASE_ANON_KEY: !supabaseAnonKey,
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY must be provided via environment variables.");
+}
 
 const partyCodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -668,11 +686,7 @@ function inferDefaultEntitlementsFromTiers(tiers) {
   const titles = tiers.map((tier) => normalizePatreonTierTitle(tier.title));
   const hasSketchPartyPro = titles.some((title) =>
     title.includes("sketch party pro") ||
-    title.includes("all extensions") ||
-    title.includes("bundle")
-  );
-  const hasDeepNotePro = titles.some((title) =>
-    title.includes("deep note pro") ||
+    title.includes("pro sketcher") ||
     title.includes("all extensions") ||
     title.includes("bundle")
   );
@@ -681,10 +695,6 @@ function inferDefaultEntitlementsFromTiers(tiers) {
     "sketch-party": {
       plan: hasSketchPartyPro ? "pro" : "free",
       source: hasSketchPartyPro ? "patreon-tier-title" : "patreon-no-match",
-    },
-    "deep-note": {
-      plan: hasDeepNotePro ? "pro" : "free",
-      source: hasDeepNotePro ? "patreon-tier-title" : "patreon-no-match",
     },
   };
 }
