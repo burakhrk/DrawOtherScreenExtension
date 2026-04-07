@@ -7,20 +7,28 @@ Goal: stop storing Supabase/Patreon secrets on Render and move the relay to Clou
 - `render.yaml` remains for reference but no secrets are expected there.
 
 ## Recommended hosting: Cloudflare Worker
-Cloudflare Workers support WebSockets. The existing relay logic is Node-based; to run it on Workers, use the native Worker WebSocket APIs (no `ws` dependency). Outline:
+Cloudflare Workers support WebSockets. Use the native Worker WebSocket APIs (no `ws` dependency). A drop-in Durable Object version lives in `workers/relay-do/worker.js`.
 
-1. Create a new Worker (e.g., `sketch-party-relay`).
-2. Store env vars in the Worker:
+Quick deploy outline
+1. Copy `workers/relay-do` and create a Worker (e.g., `sketch-party-relay`).
+2. Bind a Durable Object:
+   ```toml
+   [[durable_objects.bindings]]
+   name = "RelayHub"
+   class_name = "RelayHub"
+   ```
+3. Env vars:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
-   - (optional) `PATREON_CLIENT_ID`, `PATREON_CLIENT_SECRET`, `PATREON_CAMPAIGN_ID`, `PATREON_REDIRECT_URI`, `PATREON_TIER_MAP_JSON`
-3. Port the relay logic to Workers (native `WebSocketPair`). Keep the message types identical (`register-user`, `start-session`, `chat`, `draw`, `clear`, etc.) so the extension and dashboard continue working.
-4. Expose:
-   - `GET /health`
-   - `GET /metrics` (can be a lightweight JSON snapshot)
-   - WebSocket upgrade at `/` (or `/relay`)
-   - Patreon broker routes if you still want them on the relay host.
-5. Keep CORS allowlist to the extension and `https://extensions-hub-sites.vercel.app`.
+   - `RELAY_METRICS_TOKEN` (protects `/api/relay/metrics`)
+   - `RELAY_ALLOWED_ORIGINS` (comma-separated; include `chrome-extension://<id>` and `https://extensions-hub-sites.vercel.app`)
+   - Optional Patreon vars if this relay needs billing: `PATREON_CLIENT_ID`, `PATREON_CLIENT_SECRET`, `PATREON_CAMPAIGN_ID`, `PATREON_REDIRECT_URI`, `PATREON_TIER_MAP_JSON`
+4. Routes:
+   - `GET /api/relay/health`
+   - `GET /api/relay/metrics` (Bearer token)
+   - `WS /api/relay` (or `/api/relay/ws`)
+5. Message types supported: `register-user`, `start-session`, `leave-session`, `draw-segment`, `clear-canvas`, `chat`.
+6. CORS allowlist to the extension and `https://extensions-hub-sites.vercel.app`; metrics is token-protected.
 
 > Tip: If you prefer not to port now, you can run the existing Node relay on another host (Fly, Railway, or a VPS) with only the env vars above. Render can stay unused.
 

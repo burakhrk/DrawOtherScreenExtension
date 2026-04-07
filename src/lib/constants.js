@@ -1,6 +1,6 @@
 export const APP_ID = "sketch-party";
 export const PAYWALL_URL = "https://extensions-hub-sites.vercel.app/sketch-party/payment";
-export const DEFAULT_RELAY_URL = "https://sync-sketch-party.onrender.com";
+export const DEFAULT_RELAY_URL = "https://harika-extensions-backend.notetaker-app-burak.workers.dev/api/relay";
 export const PRIMARY_AUTH_MODE = "google";
 export const PRO_TRIAL_HOURS = 48;
 export const PRO_ADVANCED_EFFECTS = ["zap", "heartburst", "bullet", "stickman", "stickerslap", "mexicanwave"];

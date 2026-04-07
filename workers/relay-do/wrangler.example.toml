@@ -1,0 +1,17 @@
+name = "sketch-party-relay"
+main = "worker.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+SUPABASE_URL = "https://lpgdopfqvertiwcmyokh.supabase.co"
+SUPABASE_ANON_KEY = "set-me"
+RELAY_ALLOWED_ORIGINS = "chrome-extension://<id>,https://extensions-hub-sites.vercel.app"
+RELAY_METRICS_TOKEN = "set-a-long-random-token"
+
+[[durable_objects.bindings]]
+name = "RelayHub"
+class_name = "RelayHub"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RelayHub"]
